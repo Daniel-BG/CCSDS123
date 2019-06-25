@@ -1,5 +1,7 @@
 package ccsds123;
 
+import java.io.IOException;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -26,7 +28,11 @@ public class Main {
 	        if (iArgs.help) {
 	        	printHelp();
 	        } else if (iArgs.compress) {
-	        	throw new IllegalStateException("Not implemented");
+	        	try {
+					CCSDS.compress(iArgs);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 	        } else if (iArgs.decompress) {
 	        	throw new IllegalStateException("Not implemented");
 	        } else {

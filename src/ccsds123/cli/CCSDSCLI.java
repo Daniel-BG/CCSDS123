@@ -50,18 +50,19 @@ public class CCSDSCLI {
 				.longOpt(OPTION_INPUT_HEADER)
 				.build();
 		
-		Option output = 	Option
+		Option output = Option
 				.builder("o")
 				.argName("file")
 				.desc("output file")
 				.hasArg()
 				.longOpt(OPTION_OUTPUT)
+				.required()
 				.build();
 		
 		Option outputHeader = Option
 				.builder()
 				.argName("file")
-				.desc("input file header location")
+				.desc("output file header location")
 				.hasArg()
 				.longOpt(OPTION_OUTPUT_HEADER)
 				.build();

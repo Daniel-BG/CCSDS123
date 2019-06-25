@@ -1,4 +1,4 @@
-package ccsds123;
+package ccsds123.core;
 
 public class ParameterCalc {
 	
