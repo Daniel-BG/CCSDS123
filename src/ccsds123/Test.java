@@ -11,6 +11,7 @@ public class Test {
 	
 	
 	static String output = "C:/Users/Daniel/Basurero/output.dat";
+	static String output2 = "C:/Users/Daniel/Basurero/output2.dat";
 	
 	
 	static String[] argsCompression = 
@@ -18,10 +19,20 @@ public class Test {
 				"-i", input,
 				"--input_header", inputHeader,
 				"-o", output,
-				"-c"
+				"-c",
+				"--custom_size", "16", "16", "16"
+		};
+	
+	static String[] argsDecompression =
+		{
+				"-i", output,
+				"-o", output2,
+				"-d",
+				"--custom_size", "16", "16", "16"
 		};
 
 	public static void main(String[] args) {
 		Main.main(argsCompression);
+		Main.main(argsDecompression);
 	}
 }

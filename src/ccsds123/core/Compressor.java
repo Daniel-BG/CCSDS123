@@ -2,6 +2,7 @@ package ccsds123.core;
 
 import java.io.IOException;
 
+import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
 
 import ccsds123.core.Constants.LocalSumType;
@@ -19,6 +20,7 @@ public class Compressor {
 	private boolean fullPredictionMode;
 	private int predictionBands;
 	private int omega;
+	private int r;
 	
 	private int [] absErr;
 	private int [] relErr;
@@ -55,6 +57,7 @@ public class Compressor {
 		this.setNearLosslessParams(null, null, null);
 		this.setWeightUpdateParams(Constants.DEFAULT_T_EXP, Constants.DEFAULT_V_MIN, Constants.DEFAULT_V_MAX);
 		this.setOmega(Constants.DEFAULT_OMEGA);
+		this.setR(Constants.DEFAULT_R);
 		this.setEncoderUpdateParams(Constants.DEFAULT_U_MAX, Constants.DEFAULT_GAMMA_ZERO, Constants.DEFAULT_GAMMA_STAR);
 		this.setEncoderInitParams(null);
 		this.setPredictionBands(Constants.DEFAULT_P);
@@ -137,6 +140,13 @@ public class Compressor {
 			throw new IllegalArgumentException("Sample depth out of bounds");
 		}
 		this.depth = depth;
+	}
+	
+	public void setR(int r) {
+		if (r < Constants.get_MIN_R(this.depth, this.omega) || r > Constants.MAX_R) {
+			throw new IllegalArgumentException("Register size R out of bounds");
+		}
+		this.r = r;
 	}
 	
 	public void setLocalSumType(LocalSumType localSumType) {
@@ -248,6 +258,24 @@ public class Compressor {
 					int t = l*samples + s;
 					//compressing sample block[b][l][s]
 					
+					if (t == 0) {
+						long doubleResolutionPredSampleValue = this.calcDoubleResolutionSampleValue(b, 0, 0, 0, diffBlock);
+						long predictedSampleValue = this.calcPredictedSampleValue(doubleResolutionPredSampleValue);
+						
+						long predictionResidual = this.calcPredictionResidual(block[b][0][0], predictedSampleValue);
+						long quantizerIndex = this.calcQuantizerIndex(predictionResidual, 0, 0);
+	
+						long sampleRepresentative = this.calcSampleRepresentative(0, 0, 0, block[b][0][0]);
+						repBlock[b][0][0] = (int) sampleRepresentative;
+						
+						long theta = this.calcTheta(0, predictedSampleValue, 0);
+						long mappedQuantizerIndex = calcMappedQuantizerIndex(quantizerIndex, theta, doubleResolutionPredSampleValue);
+						
+						entropyCoder.code((int) mappedQuantizerIndex, 0, b, bos);
+
+						continue;
+					}
+					
 					////LOCAL SUM BEGIN 4.4
 					long localSum = this.calcLocalSum(b, l, s, repBlock, samples);
 					////LOCAL SUM END
@@ -277,7 +305,7 @@ public class Compressor {
 					//PRED RES 4.8.1 + 4.8.2.1
 					long predictionResidual = this.calcPredictionResidual(block[b][l][s], predictedSampleValue);
 					long maxErrVal = this.calcMaxErrVal(b, predictedSampleValue);
-					long quantizerIndex = this.calcQuantizerIndex(predictionResidual, maxErrVal);
+					long quantizerIndex = this.calcQuantizerIndex(predictionResidual, maxErrVal, t);
 					
 					//DR SAMPLE REPRESENTATIVE AND SAMPLE REPRESENTATIVE 4.9
 					long clippedQuantizerBinCenter = this.calcClipQuantizerBinCenter(predictedSampleValue, quantizerIndex, maxErrVal);
@@ -295,14 +323,14 @@ public class Compressor {
 					if (this.fullPredictionMode) {
 						int weightExponentOffset = this.getIntraBandWeightExponentOffset(b);
 						//north, west, northwest
-						weights[b][0] = this.updateWeight(weights[b][0], doubleResolutionPredictionError, northDiff, weightUpdateScalingExponent, weightExponentOffset);
-						weights[b][1] = this.updateWeight(weights[b][1], doubleResolutionPredictionError, westDiff, weightUpdateScalingExponent, weightExponentOffset);
-						weights[b][2] = this.updateWeight(weights[b][2], doubleResolutionPredictionError, northWestDiff, weightUpdateScalingExponent, weightExponentOffset);
+						weights[b][0] = this.updateWeight(weights[b][0], doubleResolutionPredictionError, northDiff, weightUpdateScalingExponent, weightExponentOffset, t);
+						weights[b][1] = this.updateWeight(weights[b][1], doubleResolutionPredictionError, westDiff, weightUpdateScalingExponent, weightExponentOffset, t);
+						weights[b][2] = this.updateWeight(weights[b][2], doubleResolutionPredictionError, northWestDiff, weightUpdateScalingExponent, weightExponentOffset, t);
 						windex = 3;
 					}
 					for (int p = 0; p < this.predictionBands; p++) {
 						if (b - p > 0) 
-							weights[b][windex+p] = this.updateWeight(weights[b][windex+p], doubleResolutionPredictionError, diffBlock[b-p-1][l][s], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(b, p));
+							weights[b][windex+p] = this.updateWeight(weights[b][windex+p], doubleResolutionPredictionError, diffBlock[b-p-1][l][s], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(b, p), t);
 					}
 					
 					//MAPPED QUANTIZER INDEX 4.11
@@ -317,34 +345,121 @@ public class Compressor {
 	}
 	
 	
-	private int[][] getInitialWeights(int bands) {
-		int[][] weights;
-		if (this.fullPredictionMode) {
-			weights = new int[bands][this.predictionBands + 3];
-		} else {
-			weights = new int[bands][this.predictionBands];
-		}
+	public int[][][] decompress(int bands, int lines, int samples, BitInputStream bis) throws IOException {
+		//helpers
+		SampleAdaptiveEntropyCoder entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
+		int [][] weights = this.getInitialWeights(bands);
 		
-		for (int b = 0; b < bands; b++) {
-			int windex = 0;
-			if (this.fullPredictionMode) {
-				weights[b][0] = 0;
-				weights[b][1] = 0;
-				weights[b][2] = 0;
-				windex = 3;
-			}
-			for (int p = 0; p < this.predictionBands; p++) {
-				if (p == 0) {
-					weights[b][p+windex] = (7*(1 << this.omega)) >> 3;
-				} else {
-					weights[b][p+windex] = weights[b][p+windex-1] >> 3; 
+		//image will be output here
+		int [][][] image = new int[bands][lines][samples];
+		
+		//auxiliary vars
+		int [][][] diffBlock = new int[bands][lines][samples];
+		int [][][] repBlock = new int[bands][lines][samples];
+		
+		for (int l = 0; l < lines; l++) {
+			for (int s = 0; s < samples; s++) {
+				for (int b = 0; b < bands; b++) {
+					int t = l*samples + s;
+					
+					//separate to clearly define first sample processing and other sample processing 
+					if (t == 0) {
+						//decode first sample
+						long mappedQuantizerIndex = entropyCoder.decode(0, b, bis);
+						
+						long doubleResolutionPredSampleValue = this.calcDoubleResolutionSampleValue(b, 0, 0, 0, diffBlock);
+						long predictedSampleValue = this.calcPredictedSampleValue(doubleResolutionPredSampleValue);
+						long theta = this.calcTheta(0, predictedSampleValue, 0);
+						
+						long maxErrVal = this.calcMaxErrVal(b, predictedSampleValue);
+						long quantizerIndex = this.deCalcQuantizerIndex(mappedQuantizerIndex, theta, doubleResolutionPredSampleValue, t, predictedSampleValue, maxErrVal);
+						
+						long predictionResidual = this.deCalcPredictionResidual(t, quantizerIndex, maxErrVal);
+						
+						long sample = this.deCalcSample(predictionResidual, predictedSampleValue);
+						image[b][0][0] = (int) sample;
+	
+						long sampleRepresentative = this.calcSampleRepresentative(0, 0, 0, (int) sample);
+						repBlock[b][0][0] = (int) sampleRepresentative;
+
+						continue;
+					}
+					
+					long mappedQuantizerIndex = entropyCoder.decode(0, b, bis);
+					
+					////LOCAL SUM BEGIN 4.4
+					long localSum = this.calcLocalSum(b, l, s, repBlock, samples);
+					////LOCAL SUM END
+	
+					////LOCAL DIFF BEGIN 4.5
+					long northDiff = this.calcNorthDiff(b, l, s, repBlock, localSum);
+					long westDiff = this.calcWestDiff(b, l, s, repBlock, localSum);
+					long northWestDiff = this.calcNorthWestDiff(b, l, s, repBlock, localSum);
+					long centralLocalDiff = this.calcCentralLocalDiff(b, l, s, repBlock, localSum);
+					diffBlock[b][l][s] = (int) centralLocalDiff;
+					////LOCAL DIFF END
+					
+					//PREDICTED CENTRAL LOCAL DIFFERENCE 4.7.1
+					long predictedCentralDiff = this.calcPredictedCentralDiff(b, l, s, weights, northDiff, westDiff, northWestDiff, diffBlock);
+					//PREDICTED CENTRAL LOCAL DIFFERENCE END
+				
+					
+					//HR PREDICTED SAMPLE VALUE 4.7.2
+					long highResolutionPredSampleValue = this.calcHighResolutionPredSampleValue(predictedCentralDiff, localSum);
+					//DR PREDICTED SAMPLE VALUE 4.7.3
+					long doubleResolutionPredSampleValue = this.calcDoubleResolutionSampleValue(b, l, s, highResolutionPredSampleValue, diffBlock);
+					//PREDICTED SAMMPLE VALUE 4.7.4
+					long predictedSampleValue = this.calcPredictedSampleValue(doubleResolutionPredSampleValue);
+					//PRED SAMPLE VALUE END
+					
+					//UNDO COMPRESSION
+					long maxErrVal = this.calcMaxErrVal(b, predictedSampleValue);
+					long theta = this.calcTheta(t, predictedSampleValue, maxErrVal);
+					
+					long quantizerIndex = this.deCalcQuantizerIndex(mappedQuantizerIndex, theta, doubleResolutionPredSampleValue, t, predictedSampleValue, maxErrVal);
+					long predictionResidual = this.deCalcPredictionResidual(t, quantizerIndex, maxErrVal);
+					long sample = this.deCalcSample(predictionResidual, predictedSampleValue);
+					image[b][l][s] = (int) sample;
+					//UNDO COMPRESSION END
+									
+					//DR SAMPLE REPRESENTATIVE AND SAMPLE REPRESENTATIVE 4.9
+					long clippedQuantizerBinCenter = this.calcClipQuantizerBinCenter(predictedSampleValue, quantizerIndex, maxErrVal);
+					long doubleResolutionSampleRepresentative = this.calcDoubleResolutionSampleRepresentative(b, clippedQuantizerBinCenter, quantizerIndex, maxErrVal, highResolutionPredSampleValue);
+			
+					//DR PRED ERR 4.10.1
+					long doubleResolutionPredictionError = this.calcDoubleResolutionPredictionError(clippedQuantizerBinCenter, doubleResolutionPredSampleValue);
+					//WEIGHT UPDATE SCALING EXPONENT 4.10.2
+					long weightUpdateScalingExponent = this.calcWeightUpdateScalingExponent(t, samples);
+					//WEIGHT UPDATE 4.10.3
+					int windex = 0;
+					if (this.fullPredictionMode) {
+						int weightExponentOffset = this.getIntraBandWeightExponentOffset(b);
+						//north, west, northwest
+						weights[b][0] = this.updateWeight(weights[b][0], doubleResolutionPredictionError, northDiff, weightUpdateScalingExponent, weightExponentOffset, t);
+						weights[b][1] = this.updateWeight(weights[b][1], doubleResolutionPredictionError, westDiff, weightUpdateScalingExponent, weightExponentOffset, t);
+						weights[b][2] = this.updateWeight(weights[b][2], doubleResolutionPredictionError, northWestDiff, weightUpdateScalingExponent, weightExponentOffset, t);
+						windex = 3;
+					}
+					for (int p = 0; p < this.predictionBands; p++) {
+						if (b - p > 0) 
+							weights[b][windex+p] = this.updateWeight(weights[b][windex+p], doubleResolutionPredictionError, diffBlock[b-p-1][l][s], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(b, p), t);
+					}
+					
+
+					long sampleRepresentative = this.calcSampleRepresentative(l, s, doubleResolutionSampleRepresentative, (int) sample);
+					repBlock[b][l][s] = (int) sampleRepresentative;
 				}
 			}
 		}
-		return weights;
+		
+		return image;
 	}
 	
+
 	private long calcLocalSum(int b, int l, int s, int[][][] repBlock, int samples) { //EQ 20, 21, 22, 23
+		if (l == 0 && s == 0) 
+			throw new IllegalArgumentException("Undefined local sum for t=0");
+		
 		long localSum = 0;
 		switch (this.localSumType) {
 			case WIDE_NEIGHBOR_ORIENTED: { //EQ 20
@@ -410,11 +525,16 @@ public class Compressor {
 		return localSum;
 	}
 	
-	private long calcCentralLocalDiff(int b, int l, int s, int[][][] repBlock, long localSum) {
+	private long calcCentralLocalDiff(int b, int l, int s, int[][][] repBlock, long localSum) { //EQ 24
+		if (l == 0 && s == 0)
+			throw new IllegalArgumentException("Central local diff not defined for t=0");
 		return (repBlock[b][l][s] << 2) - localSum;
 	}
 	
 	private long calcNorthDiff (int b, int l, int s, int[][][] repBlock, long localSum) { //EQ 25
+		if (l == 0 && s == 0)
+			throw new IllegalArgumentException("North diff not defined for t=0");
+		
 		if (this.fullPredictionMode && (s != 0 || l != 0))
 			if (l > 0) 
 				return (repBlock[b][l-1][s] << 2) - localSum;
@@ -422,6 +542,9 @@ public class Compressor {
 	}
 	
 	private long calcWestDiff (int b, int l, int s, int[][][] repBlock, long localSum) { //EQ 26
+		if (l == 0 && s == 0)
+			throw new IllegalArgumentException("West diff not defined for t=0");
+		
 		if (this.fullPredictionMode && (s != 0 || l != 0)) {
 			if (s > 0 && l > 0) {
 				return (repBlock[b][l][s-1] << 2) - localSum;
@@ -433,6 +556,9 @@ public class Compressor {
 	}
 	
 	private long calcNorthWestDiff (int b, int l, int s, int[][][] repBlock, long localSum) { //EQ 27
+		if (l == 0 && s == 0)
+			throw new IllegalArgumentException("NorthWest diff not defined for t=0");
+		
 		if (this.fullPredictionMode && (s != 0 || l != 0)) {
 			if (s > 0 && l > 0) {
 				return (repBlock[b][l-1][s-1] << 2) - localSum;
@@ -443,7 +569,37 @@ public class Compressor {
 		return 0;
 	}
 	
+	private int[][] getInitialWeights(int bands) { //EQ 31, 32, 33, 34
+		int[][] weights;
+		if (this.fullPredictionMode) {
+			weights = new int[bands][this.predictionBands + 3];
+		} else {
+			weights = new int[bands][this.predictionBands];
+		}
+		
+		for (int b = 0; b < bands; b++) {
+			int windex = 0;
+			if (this.fullPredictionMode) {
+				weights[b][0] = 0;
+				weights[b][1] = 0;
+				weights[b][2] = 0;
+				windex = 3;
+			}
+			for (int p = 0; p < this.predictionBands; p++) {
+				if (p == 0) {
+					weights[b][p+windex] = (7*(1 << this.omega)) >> 3;
+				} else {
+					weights[b][p+windex] = weights[b][p+windex-1] >> 3; 
+				}
+			}
+		}
+		return weights;
+	}
+	
 	private long calcPredictedCentralDiff (int b, int l, int s, int[][] weights, long northDiff, long westDiff, long northWestDiff, int[][][] diffBlock) { //EQ 36
+		if (l == 0 && s == 0)
+			throw new IllegalArgumentException("PredictedCentralDiff not defined for t=0");
+		
 		long predictedCentralDiff = 0;
 		if (b != 0 || this.fullPredictionMode) {
 			int windex = 0;
@@ -463,7 +619,8 @@ public class Compressor {
 	}
 	
 	private long calcHighResolutionPredSampleValue(long predictedCentralDiff, long localSum) { // EQ 37
-		long highResolutionPredSampleValue = predictedCentralDiff + ((localSum - (ParameterCalc.sMid(this.depth) << 2)) << this.omega)
+		long highResolutionPredSampleValue = 
+				Utils.modR(predictedCentralDiff + ((localSum - (ParameterCalc.sMid(this.depth) << 2)) << this.omega), this.r)
 				+ (ParameterCalc.sMid(this.depth) << (this.omega + 2))
 				+ (1 << (this.omega + 1));
 		return Utils.clamp(
@@ -492,7 +649,9 @@ public class Compressor {
 		 return sample - predictedSampleValue;
 	}
 	
-	private long calcQuantizerIndex(long predResidual, long maxErrVal) { //EQ 41
+	private long calcQuantizerIndex(long predResidual, long maxErrVal, int t) { //EQ 41
+		if (t == 0)
+			return predResidual;
 		return UniformQuantizer.quantize(predResidual, maxErrVal);
 	}
 	
@@ -520,9 +679,9 @@ public class Compressor {
 	
 	private long calcDoubleResolutionSampleRepresentative(int b, long clippedQuantizerBinCenter, long quantizerIndex, long maxErrVal, long highResolutionPredSampleValue) { //EQ 47
 		long fm = (1 << this.getResolution(b)) - this.getDamping(b);
-		long sm = (clippedQuantizerBinCenter << this.omega) - (Utils.signum(quantizerIndex)*maxErrVal*this.getOffset(b) << (this.omega - this.getResolution(b)));
+		long sm = (clippedQuantizerBinCenter << this.omega) - ((Utils.signum(quantizerIndex)*maxErrVal*this.getOffset(b)) << (this.omega - this.getResolution(b)));
 		long add = this.getDamping(b)*highResolutionPredSampleValue - (this.getDamping(b) << (this.omega + 1)); 
-		long sby = (1 << (this.omega + this.getResolution(b) + 1)); 
+		long sby = this.omega + this.getResolution(b) + 1; 
 		return (((fm * sm) << 2) + add) >> sby;
 	}
 	
@@ -538,14 +697,16 @@ public class Compressor {
 		return Utils.clamp(this.vmin + ((t - samples) >> this.tIncExp), this.vmin, this.vmax) + this.depth - this.omega;
 	}
 	
-	private int updateWeight(int weight, long doubleResolutionPredictionError, long diff, long weightUpdateScalingExponent, int weightExponentOffset) { //EQ 51,52,53,54
+	private int updateWeight(int weight, long doubleResolutionPredictionError, long diff, long weightUpdateScalingExponent, int weightExponentOffset, int t) { //EQ 51,52,53,54
+		if (t == 0)
+			throw new IllegalArgumentException("Weight updated undefined for t=0");
 		//first of all calculate the exponent above to see if its positive or negative
 		int exponent = (int) weightUpdateScalingExponent + weightExponentOffset;
 		int result = weight;
 		if (exponent > 0) {
 			result += ((((Utils.signumPlus((int) doubleResolutionPredictionError)*diff) >> exponent) + 1) >> 1);
 		} else {
-			result += ((((Utils.signumPlus((int) doubleResolutionPredictionError)*diff) << exponent) + 1) >> 1);
+			result += ((((Utils.signumPlus((int) doubleResolutionPredictionError)*diff) << (-exponent)) + 1) >> 1);
 		}
 		return Utils.clamp(
 				result, 
@@ -564,21 +725,65 @@ public class Compressor {
 				val = -quantizerIndex;
 			}
 			if (val >= 0 && theta >= val) {
-				return quantizerIndex << 1;
+				return Math.abs(quantizerIndex) << 1;
 			} else {
-				return (quantizerIndex << 1) - 1;
+				return (Math.abs(quantizerIndex) << 1) - 1;
 			}
 		}
 	}
 	
+	private long getLowerTheta(int t, long predictedSampleValue, long maxErrVal) { //EQ 56 a
+		if (t == 0) 
+			return predictedSampleValue - (int) ParameterCalc.sMin();
+		else 
+			return (predictedSampleValue - ParameterCalc.sMin() + maxErrVal) / (2*maxErrVal + 1);
+	}
+	
+	private long getUpperTheta(int t, long predictedSampleValue, long maxErrVal) { //EQ 56 b
+		if (t == 0) 
+			return (int) ParameterCalc.sMax(this.depth) - predictedSampleValue;
+		else 
+			return (ParameterCalc.sMax(this.depth) - predictedSampleValue + maxErrVal) / (2*maxErrVal + 1);
+	}
+	
 	private long calcTheta(int t, long predictedSampleValue, long maxErrVal) { //EQ 56
-		if (t == 0) {
-			return Math.min(predictedSampleValue - (int) ParameterCalc.sMin(), (int) ParameterCalc.sMax(this.depth) - predictedSampleValue);
+		return Math.min(getLowerTheta(t, predictedSampleValue, maxErrVal), getUpperTheta(t, predictedSampleValue, maxErrVal));
+	}
+
+	private long deCalcQuantizerIndex(long mappedQuantizerIndex, long theta, long doubleResolutionPredictedSampleValue, int t, long predictedSampleValue, long maxErrVal) { //INVERSE OF EQ 55
+		if (mappedQuantizerIndex > 2*theta) {
+			long absSignedQuantizerIndex = mappedQuantizerIndex - theta;
+			//dunno if positive or negative¿?¿?¿? its collapsed
+			//positive or negative depending on which limit theta triggered
+			long lTheta = getLowerTheta(t, predictedSampleValue, maxErrVal);
+			long uTheta = getUpperTheta(t, predictedSampleValue, maxErrVal);
+			if (lTheta <= uTheta) {
+				return absSignedQuantizerIndex;
+			} else {
+				return -absSignedQuantizerIndex;
+			}
 		} else {
-			long a = (predictedSampleValue - ParameterCalc.sMin() + maxErrVal) / (2*maxErrVal + 1);
-			long b = (ParameterCalc.sMax(this.depth) - predictedSampleValue + maxErrVal) / (2*maxErrVal + 1);
-			return Math.min(a, b);
+			long absSignedQuantizerIndex = (mappedQuantizerIndex + 1) >> 1;
+			//assume it is possitive and check if not
+			//next equation should hold in that case
+			if (Utils.minusOneToThe(doubleResolutionPredictedSampleValue)*absSignedQuantizerIndex >= 0
+					&& Utils.minusOneToThe(doubleResolutionPredictedSampleValue)*absSignedQuantizerIndex <= theta)
+				return absSignedQuantizerIndex;
+			return -absSignedQuantizerIndex;
 		}
+	}
+	
+	private long deCalcSample(long predictionResidual, long predictedSampleValue) {
+		return predictionResidual + predictedSampleValue;
+	}
+
+	private long deCalcPredictionResidual(int t, long quantizerIndex, long maxErrVal) {
+		if (t == 0)
+			return quantizerIndex;
+		long sign = Utils.signum(quantizerIndex);
+		quantizerIndex = Math.abs(quantizerIndex) * (2*maxErrVal + 1) - maxErrVal;
+		//add sign back
+		return quantizerIndex * sign;
 	}
 	
 

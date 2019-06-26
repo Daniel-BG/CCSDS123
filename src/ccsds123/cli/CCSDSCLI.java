@@ -21,6 +21,8 @@ public class CCSDSCLI {
 	public static final String OPTION_INPUT_HEADER = "input_header";
 	public static final String OPTION_OUTPUT = "output";
 	public static final String OPTION_OUTPUT_HEADER = "output_header";
+	/** Custom size use */
+	public static final String OPTION_CUSTOM_SIZE = "custom_size";
 	
 	/* Options for jypec */
 	private static Options ccsds123Options;
@@ -67,6 +69,14 @@ public class CCSDSCLI {
 				.longOpt(OPTION_OUTPUT_HEADER)
 				.build();
 		
+		Option customSize = Option
+				.builder()
+				.argName("dimensions")
+				.desc("custom number of bands, lines, samples")
+				.numberOfArgs(3)
+				.longOpt(OPTION_CUSTOM_SIZE)
+				.build();
+		
 		ccsds123Options = new Options();
 		
 		ccsds123Options.addOption(output);
@@ -77,6 +87,7 @@ public class CCSDSCLI {
 		ccsds123Options.addOption(outputHeader);
 		ccsds123Options.addOption(compress);
 		ccsds123Options.addOption(decompress);
+		ccsds123Options.addOption(customSize);
 	}
 	
 	

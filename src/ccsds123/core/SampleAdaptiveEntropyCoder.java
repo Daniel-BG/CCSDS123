@@ -3,6 +3,7 @@ package ccsds123.core;
 import java.io.IOException;
 
 import com.jypec.util.bits.Bit;
+import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
 import com.jypec.util.bits.BitStreamConstants;
 
@@ -80,28 +81,67 @@ public class SampleAdaptiveEntropyCoder {
 		}
 	}
 	
+	private int lengthLimitedGolombPowerOfTwoDecode(int uIntCodeIndex, BitInputStream bis) throws IOException {		
+		int threshold = 0;
+		do {
+			Bit bit = bis.readBit();
+			if (bit == Bit.BIT_ONE)
+				break;
+			threshold++;
+		} while (threshold < this.uMax);
+		
+		if (threshold == this.uMax) {
+			return bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+		} else {
+			return (threshold << uIntCodeIndex) | bis.readBits(uIntCodeIndex, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+		}
+	}
+	
+	
+	private int getUintCodeIndex(int b, int t) {
+		int uIntCodeIndex;
+		if (2*this.getCounterValue(t) > this.accumulator[b] + ((49*this.getCounterValue(t)) >> 7)) {
+			uIntCodeIndex = 0;
+		} else {
+			uIntCodeIndex = 0;
+			while (this.getCounterValue(t) << (uIntCodeIndex + 1) <= this.accumulator[b] + ((49*this.getCounterValue(t)) >> 7)) {
+				uIntCodeIndex++;
+			}
+			uIntCodeIndex = Math.min(uIntCodeIndex, this.depth-2);
+		}
+		return uIntCodeIndex;
+	}
+	
+	private void updateAccumulator(int b, int t) {
+		this.accumulator[b] = this.accumulator[b] + 1;
+		if (this.getCounterValue(t) == (1 << this.gammaStar) - 1) {
+			this.accumulator[b] >>= 1;
+		}
+	}
+	
 	public void code(int mappedQuantizerIndex, int t, int b, BitOutputStream bos) throws IOException {
 		if (t == 0) {
 			bos.writeBits(mappedQuantizerIndex, this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 		} else {
 			int uInt = mappedQuantizerIndex;
-			int uIntCodeIndex;
-			if (2*this.getCounterValue(t) > this.accumulator[b] + ((49*this.getCounterValue(t)) >> 7)) {
-				uIntCodeIndex = 0;
-			} else {
-				uIntCodeIndex = 0;
-				while (this.getCounterValue(t) << (uIntCodeIndex + 1) <= this.accumulator[b] + ((49*this.getCounterValue(t)) >> 7)) {
-					uIntCodeIndex++;
-				}
-				uIntCodeIndex = Math.min(uIntCodeIndex, this.depth-2);
-			}
+			int uIntCodeIndex = this.getUintCodeIndex(b, t);
 			//code
 			this.lengthLimitedGolombPowerOfTwoCode(uInt, uIntCodeIndex, bos);
 			//update accumulator
-			this.accumulator[b] = this.accumulator[b] + 1;
-			if (this.getCounterValue(t) == (1 << this.gammaStar) - 1) {
-				this.accumulator[b] >>= 1;
-			}
+			this.updateAccumulator(b, t);
+		}
+	}
+	
+	
+	public int decode(int t, int b, BitInputStream bis) throws IOException {
+		if (t == 0) {
+			return bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+		} else {
+			int uIntCodeIndex = this.getUintCodeIndex(b, t);
+			int uInt = this.lengthLimitedGolombPowerOfTwoDecode(uIntCodeIndex, bis);
+			//update accumulator
+			this.updateAccumulator(b, t);
+			return uInt;
 		}
 	}
 	

@@ -33,6 +33,20 @@ public class Utils {
 		return -1;
 	}
 	
+	public static long modR(long value, int r) {
+		if (r == 64)
+			return value;
+		
+		long offset = 1 << (r - 1);
+		long modulus = 1 << r;
+		return ((value + offset) % modulus) - offset;
+	}
+	
+	public static long minusOneToThe(long value) {
+		if (value % 2 == 0)
+			return 1;
+		return -1;
+	}
 	
 	/**
 	 * Generic template to extract a value from a vector which can be null,

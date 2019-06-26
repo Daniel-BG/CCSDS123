@@ -34,7 +34,11 @@ public class Main {
 					e.printStackTrace();
 				}
 	        } else if (iArgs.decompress) {
-	        	throw new IllegalStateException("Not implemented");
+	        	try {
+					CCSDS.decompress(iArgs);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 	        } else {
 	        	throw new ParseException("Missing options -c -d, i don't know what to do");
 	        }

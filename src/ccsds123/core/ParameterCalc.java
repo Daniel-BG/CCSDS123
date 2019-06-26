@@ -14,11 +14,11 @@ public class ParameterCalc {
 		return (1l << depth) - 1;
 	}
 	
-	public static int wMin(int omega) {
+	public static int wMin(int omega) { //EQ 30
 		return -(1 << (omega + 2));
 	}
 	
-	public static int  wMax(int omega) {
+	public static int  wMax(int omega) { //EQ 30
 		return (1 << (omega + 2)) - 1;
 	}
 

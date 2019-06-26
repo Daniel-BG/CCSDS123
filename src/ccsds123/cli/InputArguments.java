@@ -29,6 +29,16 @@ public class InputArguments {
 	/** Output file header. Null if not set */
 	public String outputHeader = null;
 	
+	//image size
+	/** use custom image size */
+	public boolean useCustomSize = false;
+	/** number of bands in custom size */
+	public int bands = 0;
+	/** number of lines in custom size */
+	public int lines = 0;
+	/** number of samples in custom size */
+	public int samples = 0;
+	
 	
 	
 	/**
@@ -49,6 +59,16 @@ public class InputArguments {
 		args.output = line.getOptionValue(CCSDSCLI.OPTION_OUTPUT);
 		args.inputHeader = line.getOptionValue(CCSDSCLI.OPTION_INPUT_HEADER);
 		args.outputHeader = line.getOptionValue(CCSDSCLI.OPTION_OUTPUT_HEADER);
+		
+		String[] sizeArgs = line.getOptionValues(CCSDSCLI.OPTION_CUSTOM_SIZE);
+		if (sizeArgs != null) {
+			args.useCustomSize = true;
+			args.bands   = Integer.parseInt(sizeArgs[0]);
+			args.lines   = Integer.parseInt(sizeArgs[1]);
+			args.samples = Integer.parseInt(sizeArgs[2]);
+		} else {
+			args.useCustomSize = false;
+		}
 		
 		
 		return args;

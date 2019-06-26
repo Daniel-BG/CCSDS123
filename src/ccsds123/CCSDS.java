@@ -1,11 +1,13 @@
 package ccsds123;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
 import com.jypec.img.HyperspectralImage;
 import com.jypec.img.HyperspectralImageData;
+import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
 import com.jypec.util.io.HyperspectralImageReader;
 
@@ -24,9 +26,18 @@ public class CCSDS {
 		BitOutputStream bos = new BitOutputStream(new FileOutputStream(new File(args.output)));
 		
 		HyperspectralImageData hid = hi.getData();
-		int imgBands	= hid.getNumberOfBands();
-		int imgLines	= hid.getNumberOfLines();
-		int imgSamples	= hid.getNumberOfSamples();
+		
+		int imgBands, imgLines, imgSamples;
+		
+		if (args.useCustomSize) {
+			imgBands	= args.bands;
+			imgLines	= args.lines;
+			imgSamples	= args.samples;
+		} else {
+			imgBands	= hid.getNumberOfBands();
+			imgLines	= hid.getNumberOfLines();
+			imgSamples	= hid.getNumberOfSamples();
+		}
 		
 		//fill block up
 		int[][][] image = new int[imgBands][imgLines][imgSamples];
@@ -39,7 +50,19 @@ public class CCSDS {
 		}
 		
 		c.compress(image, imgBands, imgLines, imgSamples, bos);
+		bos.paddingFlush();
+		bos.close();
+	}
+	
+	
+	public static void decompress(InputArguments args) throws IOException {
+		Compressor c = new Compressor();		
+		BitInputStream bis = new BitInputStream(new FileInputStream(new File(args.input)));
+
 		
+		int[][][] image = c.decompress(args.bands, args.lines, args.samples, bis);
+		
+		throw new IllegalStateException("Not implemented");
 	}
 	
 }

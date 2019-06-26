@@ -20,6 +20,7 @@ public class Constants {
 	public static final int DEFAULT_V_MIN = -6;
 	public static final int DEFAULT_V_MAX = 9;
 	public static final int DEFAULT_OMEGA = 19;
+	public static final int DEFAULT_R = 64;
 	public static final int DEFAULT_U_MAX = 10;
 	public static final int DEFAULT_GAMMA_ZERO = 6;
 	public static final int DEFAULT_GAMMA_STAR = 10;
@@ -73,7 +74,10 @@ public class Constants {
 		return (1 << resolution) - 1;
 	}
 	
-	
+	public static int get_MIN_R(int depth, int omega) {
+		return Math.max(32, depth + omega + 2);
+	}
+	public static final int MAX_R = 64;
 	
 	
 	
