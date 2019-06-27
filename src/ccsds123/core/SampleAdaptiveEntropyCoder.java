@@ -7,6 +7,7 @@ import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
 import com.jypec.util.bits.BitStreamConstants;
 
+import ccsds123.util.Sampler;
 import ccsds123.util.Utils;
 
 /**
@@ -26,6 +27,10 @@ public class SampleAdaptiveEntropyCoder {
 	private int counterResetValue;
 	
 	public SampleAdaptiveEntropyCoder(int uMax, int depth, int bands, int gammaZero, int gammaStar, int [] accumulatorInitializationConstant) {
+		this.reset(uMax, depth, bands, gammaZero, gammaStar, accumulatorInitializationConstant);
+	}
+	
+	public void reset(int uMax, int depth, int bands, int gammaZero, int gammaStar, int [] accumulatorInitializationConstant) {
 		if (uMax < 8 || uMax > 32)
 			throw new IllegalArgumentException("Umax out of bounds!");
 		this.uMax = uMax;
@@ -43,6 +48,11 @@ public class SampleAdaptiveEntropyCoder {
 			accumulator[b] = this.calcInitialAccValue(Utils.getVectorValue(accumulatorInitializationConstant, b, 0));
 		}
 	}
+	
+	
+	Sampler<Integer> uismpl			= new Sampler<Integer>("c_ui");
+	Sampler<Integer> uicismpl		= new Sampler<Integer>("c_uici");
+	Sampler<Integer> accsmpl		= new Sampler<Integer>("c_acc");
 	
 	
 	private int getCounterValue(int t) {
@@ -91,7 +101,8 @@ public class SampleAdaptiveEntropyCoder {
 		} while (threshold < this.uMax);
 		
 		if (threshold == this.uMax) {
-			return bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+			int res = bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST); 
+			return res;
 		} else {
 			return (threshold << uIntCodeIndex) | bis.readBits(uIntCodeIndex, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 		}
@@ -121,26 +132,29 @@ public class SampleAdaptiveEntropyCoder {
 	
 	public void code(int mappedQuantizerIndex, int t, int b, BitOutputStream bos) throws IOException {
 		if (t == 0) {
-			bos.writeBits(mappedQuantizerIndex, this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+			bos.writeBits(uismpl.sample(mappedQuantizerIndex), this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 		} else {
-			int uInt = mappedQuantizerIndex;
-			int uIntCodeIndex = this.getUintCodeIndex(b, t);
+			int uInt = uismpl.sample(mappedQuantizerIndex);
+			int uIntCodeIndex = uicismpl.sample(this.getUintCodeIndex(b, t));
 			//code
 			this.lengthLimitedGolombPowerOfTwoCode(uInt, uIntCodeIndex, bos);
 			//update accumulator
 			this.updateAccumulator(b, t);
+			accsmpl.sample(this.accumulator[b]);
 		}
 	}
 	
 	
 	public int decode(int t, int b, BitInputStream bis) throws IOException {
 		if (t == 0) {
-			return bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+			int res = uismpl.unSample(bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST));
+			return res;
 		} else {
-			int uIntCodeIndex = this.getUintCodeIndex(b, t);
-			int uInt = this.lengthLimitedGolombPowerOfTwoDecode(uIntCodeIndex, bis);
+			int uIntCodeIndex = uicismpl.unSample(this.getUintCodeIndex(b, t));
+			int uInt = uismpl.unSample(this.lengthLimitedGolombPowerOfTwoDecode(uIntCodeIndex, bis));
 			//update accumulator
 			this.updateAccumulator(b, t);
+			accsmpl.unSample(this.accumulator[b]);
 			return uInt;
 		}
 	}

@@ -16,11 +16,12 @@ import ccsds123.core.Compressor;
 
 public class CCSDS {
 
-	//todo add commons-cli and others here
+	//TODO temporary static variable
+	private static Compressor c = new Compressor();
 	
 	public static void compress(InputArguments args) throws IOException {
 		
-		Compressor c = new Compressor();
+		//Compressor c = new Compressor();
 		HyperspectralImage hi = HyperspectralImageReader.read(args.input, args.inputHeader, true);
 		
 		BitOutputStream bos = new BitOutputStream(new FileOutputStream(new File(args.output)));
@@ -56,7 +57,7 @@ public class CCSDS {
 	
 	
 	public static void decompress(InputArguments args) throws IOException {
-		Compressor c = new Compressor();		
+		//Compressor c = new Compressor();		
 		BitInputStream bis = new BitInputStream(new FileInputStream(new File(args.input)));
 
 		
