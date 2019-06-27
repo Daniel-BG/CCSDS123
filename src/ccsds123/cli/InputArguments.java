@@ -17,6 +17,8 @@ public class InputArguments {
 	public boolean compress = false;
 	/** Asked to decompress */
 	public boolean decompress = false;
+	/** Asked to compare */
+	public boolean compare;
 	
 	
 	//files
@@ -38,6 +40,11 @@ public class InputArguments {
 	public int lines = 0;
 	/** number of samples in custom size */
 	public int samples = 0;
+	/** bitdepth (Decompression) */
+	public int bitDepth;
+	/** signed samples (Decompression) */
+	public boolean signed;
+	
 	
 	
 	
@@ -54,6 +61,7 @@ public class InputArguments {
 		
 		args.compress = line.hasOption(CCSDSCLI.OPTION_COMPRESS);
 		args.decompress = line.hasOption(CCSDSCLI.OPTION_DECOMPRESS);
+		args.compare = line.hasOption(CCSDSCLI.OPTION_COMPARE);
 		
 		args.input = line.getOptionValue(CCSDSCLI.OPTION_INPUT);
 		args.output = line.getOptionValue(CCSDSCLI.OPTION_OUTPUT);
@@ -70,6 +78,9 @@ public class InputArguments {
 			args.useCustomSize = false;
 		}
 		
+		if (line.hasOption(CCSDSCLI.OPTION_BITDEPTH))
+			args.bitDepth = Integer.parseInt(line.getOptionValue(CCSDSCLI.OPTION_BITDEPTH));
+		args.signed   = line.hasOption(CCSDSCLI.OPTION_SIGNED);
 		
 		return args;
 	}

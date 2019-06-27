@@ -291,6 +291,11 @@ public class Compressor {
 			for (int s = 0; s < samples; s++) {
 				for (int b = 0; b < bands; b++) {
 					int t = l*samples + s;
+					
+					if ((b+s*bands+l*bands*samples) % 10000 == 0) {
+						System.out.println((b+s*bands+l*bands*samples) / 10000 + "0k / " + (lines*bands*samples) / 1000 + "k");
+					}
+					
 					//compressing sample block[b][l][s]
 					if (t == 0) {
 						long doubleResolutionPredSampleValue = drpsvsmpl.sample(this.calcDoubleResolutionSampleValue(b, 0, 0, 0, diffBlock));
@@ -401,6 +406,10 @@ public class Compressor {
 			for (int s = 0; s < samples; s++) {
 				for (int b = 0; b < bands; b++) {
 					int t = l*samples + s;
+					
+					if ((b+s*bands+l*bands*samples) % 10000 == 0) {
+						System.out.println((b+s*bands+l*bands*samples) / 10000 + "0k / " + (lines*bands*samples) / 1000 + "k");
+					}
 					
 					//separate to clearly define first sample processing and other sample processing 
 					if (t == 0) {

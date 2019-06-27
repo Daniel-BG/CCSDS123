@@ -4,29 +4,35 @@ import java.io.BufferedWriter;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
 
 public class Sampler <T> {
+	
+	private static final boolean DISABLE_SAMPLING = false;
 	
 	private Deque<T> samples;
 	private String filename;
 	
 	public Sampler(String filename) {
 		this.filename = filename;
-		samples = new LinkedList<T>();
+		if (!DISABLE_SAMPLING)
+			samples = new LinkedList<T>();
 	}
 	
 	public T sample(T t) {
+		if (DISABLE_SAMPLING)
+			return t;
+		
 		samples.addLast(t);
 		return t;
 	}
 	
 	private int uSampleCnt = 0;
 	public T unSample(T t) {
+		if (DISABLE_SAMPLING)
+			return t;
+		
 		T s = samples.removeFirst();
 		if (!s.equals(t)) {
 			throw new IllegalStateException("Difference @" + uSampleCnt + "! " + t.toString() + " -> " + s.toString());
@@ -36,6 +42,9 @@ public class Sampler <T> {
 	}
 
 	public void export() throws IOException {
+		if (DISABLE_SAMPLING)
+			return;
+		
 		FileOutputStream fos = new FileOutputStream(Sampler.samplePath + this.filename + Sampler.extension, false);
 		OutputStreamWriter osw = new OutputStreamWriter(fos);
 		BufferedWriter bw = new BufferedWriter(osw);

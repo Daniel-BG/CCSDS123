@@ -28,11 +28,24 @@ public class Test {
 				"-i", output,
 				"-o", output2,
 				"-d",
+				"--bitdepth", "16",
+				"--custom_size", "16", "16", "16"
+		};
+	
+	static String[] argsCompare =
+		{
+				"-i", input,
+				"--input_header", inputHeader,
+				"-o", output,
+				"-k",
+				"--bitdepth", "16",
 				"--custom_size", "16", "16", "16"
 		};
 
 	public static void main(String[] args) {
-		Main.main(argsCompression);
-		Main.main(argsDecompression);
+		Main.main(argsCompare);
+		
+		//Main.main(argsCompression);
+		//Main.main(argsDecompression);
 	}
 }
