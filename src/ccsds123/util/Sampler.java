@@ -9,35 +9,39 @@ import java.util.LinkedList;
 
 public class Sampler <T> {
 	
-	private static final boolean DISABLE_SAMPLING = false;
+	private static final boolean DISABLE_CHECKING = true;
+	private static final boolean DISABLE_SAMPLING = true;
 	
-	private Deque<T> samples;
+	private Deque<T> samplingDQ, checkingDQ;
 	private String filename;
 	
 	public Sampler(String filename) {
 		this.filename = filename;
 		if (!DISABLE_SAMPLING)
-			samples = new LinkedList<T>();
+			samplingDQ = new LinkedList<T>();
+		if (!DISABLE_CHECKING)
+			checkingDQ = new LinkedList<T>();
 	}
 	
 	public T sample(T t) {
-		if (DISABLE_SAMPLING)
-			return t;
-		
-		samples.addLast(t);
+		if (!DISABLE_SAMPLING)
+			samplingDQ.addLast(t);
+		if (!DISABLE_CHECKING)
+			checkingDQ.addLast(t);
+			
 		return t;
 	}
 	
 	private int uSampleCnt = 0;
-	public T unSample(T t) {
-		if (DISABLE_SAMPLING)
-			return t;
-		
-		T s = samples.removeFirst();
-		if (!s.equals(t)) {
-			throw new IllegalStateException("Difference @" + uSampleCnt + "! " + t.toString() + " -> " + s.toString());
+	public T unSample(T t) {		
+		if (!DISABLE_CHECKING) {
+			T s = checkingDQ.removeFirst();
+			if (!s.equals(t)) {
+				throw new IllegalStateException("Difference @" + uSampleCnt + "! " + t.toString() + " -> " + s.toString());
+			}
+			uSampleCnt++;
 		}
-		uSampleCnt++;
+		
 		return t;
 	}
 
@@ -48,7 +52,7 @@ public class Sampler <T> {
 		FileOutputStream fos = new FileOutputStream(Sampler.samplePath + this.filename + Sampler.extension, false);
 		OutputStreamWriter osw = new OutputStreamWriter(fos);
 		BufferedWriter bw = new BufferedWriter(osw);
-		for (T s: samples) {
+		for (T s: samplingDQ) {
 			bw.write(s.toString());
 			bw.newLine();
 		}	

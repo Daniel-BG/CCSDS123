@@ -45,7 +45,7 @@ public class SampleAdaptiveEntropyCoder {
 		this.accumulator = new int[bands];
 		this.counterResetValue = 1 << this.gammaZero;
 		for (int b = 0; b < accumulator.length; b++) {
-			accumulator[b] = this.calcInitialAccValue(Utils.getVectorValue(accumulatorInitializationConstant, b, 0));
+			accumulator[b] = this.calcInitialAccValue(Utils.getVectorValue(accumulatorInitializationConstant, b, Constants.DEFAULT_ACC_INIT_CONSTANT));
 		}
 	}
 	
@@ -109,13 +109,13 @@ public class SampleAdaptiveEntropyCoder {
 	}
 	
 	
-	private int getUintCodeIndex(int b, int t) {
+	private int getUintCodeIndex(int b, int t, int cValue) {
 		int uIntCodeIndex;
-		if (2*this.getCounterValue(t) > this.accumulator[b] + ((49*this.getCounterValue(t)) >> 7)) {
+		if (2*cValue > this.accumulator[b] + ((49*cValue) >> 7)) {
 			uIntCodeIndex = 0;
 		} else {
 			uIntCodeIndex = 0;
-			while (this.getCounterValue(t) << (uIntCodeIndex + 1) <= this.accumulator[b] + ((49*this.getCounterValue(t)) >> 7)) {
+			while (cValue << (uIntCodeIndex + 1) <= this.accumulator[b] + ((49*cValue) >> 7)) {
 				uIntCodeIndex++;
 			}
 			uIntCodeIndex = Math.min(uIntCodeIndex, this.depth-2);
@@ -123,10 +123,10 @@ public class SampleAdaptiveEntropyCoder {
 		return uIntCodeIndex;
 	}
 	
-	private void updateAccumulator(int b, int t) {
-		this.accumulator[b] = this.accumulator[b] + 1;
-		if (this.getCounterValue(t) == (1 << this.gammaStar) - 1) {
-			this.accumulator[b] >>= 1;
+	private void updateAccumulator(int b, int t, int mappedQuantizerIndex, int cValue) {
+		this.accumulator[b] += mappedQuantizerIndex;
+		if (cValue == (1 << this.gammaStar) - 1) {
+			this.accumulator[b] = (this.accumulator[b] + 1) >> 1;
 		}
 	}
 	
@@ -134,12 +134,13 @@ public class SampleAdaptiveEntropyCoder {
 		if (t == 0) {
 			bos.writeBits(uismpl.sample(mappedQuantizerIndex), this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 		} else {
+			int cValue = this.getCounterValue(t);
 			int uInt = uismpl.sample(mappedQuantizerIndex);
-			int uIntCodeIndex = uicismpl.sample(this.getUintCodeIndex(b, t));
+			int uIntCodeIndex = uicismpl.sample(this.getUintCodeIndex(b, t, cValue));
 			//code
 			this.lengthLimitedGolombPowerOfTwoCode(uInt, uIntCodeIndex, bos);
 			//update accumulator
-			this.updateAccumulator(b, t);
+			this.updateAccumulator(b, t, mappedQuantizerIndex, cValue);
 			accsmpl.sample(this.accumulator[b]);
 		}
 	}
@@ -150,10 +151,11 @@ public class SampleAdaptiveEntropyCoder {
 			int res = uismpl.unSample(bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST));
 			return res;
 		} else {
-			int uIntCodeIndex = uicismpl.unSample(this.getUintCodeIndex(b, t));
+			int cValue = this.getCounterValue(t);
+			int uIntCodeIndex = uicismpl.unSample(this.getUintCodeIndex(b, t, cValue));
 			int uInt = uismpl.unSample(this.lengthLimitedGolombPowerOfTwoDecode(uIntCodeIndex, bis));
 			//update accumulator
-			this.updateAccumulator(b, t);
+			this.updateAccumulator(b, t, uInt, cValue);
 			accsmpl.unSample(this.accumulator[b]);
 			return uInt;
 		}

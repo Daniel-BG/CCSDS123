@@ -18,7 +18,7 @@ import ccsds123.core.Compressor;
 
 public class CCSDS {
 	
-	public static void compress(Compressor c, HyperspectralImageData hid, String outputFile) throws IOException {
+	public static void compress(Compressor c, HyperspectralImageData hid, String outputFile, InputArguments args) throws IOException {
 		
 		//Compressor c = new Compressor();
 		BitOutputStream bos = new BitOutputStream(new FileOutputStream(new File(outputFile)));
@@ -40,6 +40,11 @@ public class CCSDS {
 		
 		c.compress(image, imgBands, imgLines, imgSamples, bos);
 		bos.paddingFlush();
+		
+		if (args.showCompressionStats) {
+			System.out.println("Size: " + hid.getBitSize() + " -> " + bos.getBitsOutput());
+		}
+		
 		bos.close();
 	}
 	
@@ -65,15 +70,19 @@ public class CCSDS {
 	}
 	
 	public static void compare(Compressor c, HyperspectralImageData hid, InputArguments args) throws IOException {
-		CCSDS.compress(c, hid, args.output);
+		CCSDS.compress(c, hid, args.output, args);
 		args.input = args.output;
+		args.bands = hid.getNumberOfBands();
+		args.lines = hid.getNumberOfLines();
+		args.samples = hid.getNumberOfSamples();
+		args.bitDepth = hid.getDataType().getBitDepth();
+		args.signed = hid.getDataType().isSigned();
 		HyperspectralImageData hidRes = CCSDS.decompress(c, args);
 		
 		FMatrixRMaj fdm = hid.tofloatMatrix();
 		FMatrixRMaj sdm = hidRes.tofloatMatrix();
 		hidRes = null; //garbage collect
 		float dynRange = hid.getDataType().getDynamicRange();
-		
 		
 		//output metrics
 		System.out.println("PSNR: " + ImageComparisons.rawPSNR(fdm, sdm, dynRange));

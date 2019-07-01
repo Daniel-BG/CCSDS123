@@ -37,9 +37,10 @@ public class Test {
 				"-i", input,
 				"--input_header", inputHeader,
 				"-o", output,
-				"-k",
+				"-k", "--stats",
 				"--bitdepth", "16",
-				"--custom_size", "16", "16", "16"
+				//"--custom_size", "32", "32", "32",
+				"--custom_size", "64", "64", "64"
 		};
 
 	public static void main(String[] args) {

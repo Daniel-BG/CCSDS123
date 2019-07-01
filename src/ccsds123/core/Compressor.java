@@ -27,6 +27,8 @@ public class Compressor {
 	private int [] relErr;
 	private boolean useAbsoluteErrLimit;
 	private boolean useRelativeErrLimit; 
+	private int absoluteErrorLimitBitDepth;
+	private int relativeErrorLimitBitDepth;
 	
 	private int [] resolution;
 	private int [] damping;
@@ -43,6 +45,8 @@ public class Compressor {
 	private int gammaZero;
 	private int gammaStar;
 	private int [] accumulatorInitializationConstant;
+	
+	private SampleAdaptiveEntropyCoder entropyCoder;
 	
 	/** DEBUG STUFF */
 	private static final String sampleBaseDir = "C:/Users/Daniel/Basurero/out/";
@@ -62,7 +66,7 @@ public class Compressor {
 	 */
 	public void setDefaults() {
 		this.setLocalSumType(Constants.DEFAULT_LOCAL_SUM_TYPE);
-		this.setErrors(null, null);
+		this.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, null, null, Constants.DEFAULT_USE_ABS_ERR, Constants.DEFAULT_USE_REL_ERR);
 		this.setDepth(Constants.DEFAULT_DEPTH);
 		this.setNearLosslessParams(null, null, null);
 		this.setWeightUpdateParams(Constants.DEFAULT_T_EXP, Constants.DEFAULT_V_MIN, Constants.DEFAULT_V_MAX);
@@ -113,10 +117,10 @@ public class Compressor {
 	}
 	
 	public void setWeightUpdateParams(int tIncExp, int vmin, int vmax) {
-		if (tIncExp < Constants.MIN_T_EXP || tIncExp > Constants.MAX_T_EXP) 
+		if (tIncExp < Constants.MIN_T_EXP || tIncExp > Constants.MAX_T_EXP)
 			throw new IllegalArgumentException("Tinc out of bounds");
 		this.tIncExp = tIncExp;
-		if (vmin < Constants.MIN_V || vmax > Constants.MAX_V || vmin >= vmax) 
+		if (vmin < Constants.MIN_V || vmax > Constants.MAX_V || vmin >= vmax)
 			throw new IllegalArgumentException("vmin and/or vmax out of bounds");
 		this.vmax = vmax;
 		this.vmin = vmin;
@@ -124,13 +128,13 @@ public class Compressor {
 	
 	public void setNearLosslessParams(int[] resolution, int[] damping, int[] offset) {
 		Utils.checkVector(resolution, Constants.MIN_RESOLUTION, Constants.MAX_RESOLUTION);
-		if (offset != null) 
-			for (int i = 0; i < offset.length; i++) 
-				if (offset[i] < Constants.MIN_OFFSET || offset[i] > Constants.get_MAX_OFFSET(this.getResolution(i))) 
+		if (offset != null)
+			for (int i = 0; i < offset.length; i++)
+				if (offset[i] < Constants.MIN_OFFSET || offset[i] > Constants.get_MAX_OFFSET(this.getResolution(i)))
 					throw new IllegalArgumentException("Offset out of bounds");
 		
-		if (damping != null) 
-			for (int i = 0; i < damping.length; i++) 
+		if (damping != null)
+			for (int i = 0; i < damping.length; i++)
 				if (damping[i] < Constants.MIN_DAMPING || damping[i] > Constants.get_MAX_DAMPING(this.getResolution(i))) 
 					throw new IllegalArgumentException("Offset out of bounds");		
 		
@@ -163,22 +167,16 @@ public class Compressor {
 		this.localSumType = localSumType;
 	}
 	
-	public void setErrors(int[] absErr, int[] relErr) {
-		if (absErr == null) {
-			this.useAbsoluteErrLimit = false;
-		} else {
-			this.absErr = absErr;
-			this.useAbsoluteErrLimit = true;
-		}
-		if (relErr == null) {
-			this.useRelativeErrLimit = false;
-		} else {
-			this.relErr = relErr;
-			this.useRelativeErrLimit = true;
-		}
+	public void setErrors(int absoluteErrorLimitBitDepth, int relativeErrorLimitBitDepth, int[] absErr, int[] relErr, boolean useAbsoluteErrLimit, boolean useRelativeErrLimit) {
+		this.absoluteErrorLimitBitDepth = absoluteErrorLimitBitDepth;
+		this.relativeErrorLimitBitDepth = relativeErrorLimitBitDepth;
+		Utils.checkVector(absErr, Constants.MIN_ABS_ERR_VALUE, Constants.get_MAX_ABS_ERR_VALUE(this.absoluteErrorLimitBitDepth));
+		Utils.checkVector(relErr, Constants.MIN_REL_ERR_VALUE, Constants.get_MAX_REL_ERR_VALUE(this.relativeErrorLimitBitDepth));
+		this.absErr = absErr;
+		this.relErr = relErr;
+		this.useAbsoluteErrLimit = useAbsoluteErrLimit | absErr != null;
+		this.useRelativeErrLimit = useRelativeErrLimit | relErr != null;
 	}
-	
-	
 	
 	public void checkParameterSanity(int bands) {
 		if (absErr != null && absErr.length != 1 && absErr.length != bands)
@@ -233,7 +231,7 @@ public class Compressor {
 		return Utils.getMatrixValue(interBandWeightExponentOffsets, band, p, Constants.DEFAULT_WEIGHT_EXPONENT_OFFSET);
 	}
 	
-	
+	Sampler<Integer> ssmpl 			= new Sampler<Integer>("c_s");
 	Sampler<Long> drpsvsmpl 		= new Sampler<Long>("c_drpsv");
 	Sampler<Long> psvsmpl	 		= new Sampler<Long>("c_psv");
 	Sampler<Long> prsmpl	 		= new Sampler<Long>("c_pr");
@@ -256,7 +254,7 @@ public class Compressor {
 	Sampler<Long> mqismpl			= new Sampler<Long>("c_mqi");
 	
 	
-	private static SampleAdaptiveEntropyCoder entropyCoder;
+	
 
 	/**
 	 * 
@@ -291,6 +289,7 @@ public class Compressor {
 			for (int s = 0; s < samples; s++) {
 				for (int b = 0; b < bands; b++) {
 					int t = l*samples + s;
+					ssmpl.sample(block[b][l][s]);
 					
 					if ((b+s*bands+l*bands*samples) % 10000 == 0) {
 						System.out.println((b+s*bands+l*bands*samples) / 10000 + "0k / " + (lines*bands*samples) / 1000 + "k");
@@ -334,7 +333,7 @@ public class Compressor {
 					//HR PREDICTED SAMPLE VALUE 4.7.2
 					long highResolutionPredSampleValue = hrpsvsmpl.sample(this.calcHighResolutionPredSampleValue(predictedCentralDiff, localSum));
 					//DR PREDICTED SAMPLE VALUE 4.7.3
-					long doubleResolutionPredSampleValue = drpsvsmpl.sample(this.calcDoubleResolutionSampleValue(b, l, s, highResolutionPredSampleValue, diffBlock));
+					long doubleResolutionPredSampleValue = drpsvsmpl.sample(this.calcDoubleResolutionSampleValue(b, l, s, highResolutionPredSampleValue, block));
 					//PREDICTED SAMMPLE VALUE 4.7.4
 					long predictedSampleValue = psvsmpl.sample(this.calcPredictedSampleValue(doubleResolutionPredSampleValue));
 					//PRED SAMPLE VALUE END
@@ -382,6 +381,28 @@ public class Compressor {
 				}
 			}
 		}
+		
+		ssmpl.export();
+		drpsvsmpl.export();
+		psvsmpl.export();
+		prsmpl.export();
+		wsmpl.export();
+		wusesmpl.export();
+		drpesmpl.export();
+		drsrsmpl.export();
+		cqbcsmpl.export();
+		mevsmpl.export();
+		hrpsvsmpl.export();
+		pcdsmpl.export();
+		cldsmpl.export();
+		nwdsmpl.export();
+		wdsmpl.export();
+		ndsmpl.export();
+		lssmpl.export();
+		qismpl.export();
+		srsmpl.export();
+		tsmpl.export();
+		mqismpl.export();
 	}
 	
 	
@@ -454,7 +475,7 @@ public class Compressor {
 					//HR PREDICTED SAMPLE VALUE 4.7.2
 					long highResolutionPredSampleValue = hrpsvsmpl.unSample(this.calcHighResolutionPredSampleValue(predictedCentralDiff, localSum));
 					//DR PREDICTED SAMPLE VALUE 4.7.3
-					long doubleResolutionPredSampleValue = drpsvsmpl.unSample(this.calcDoubleResolutionSampleValue(b, l, s, highResolutionPredSampleValue, diffBlock));
+					long doubleResolutionPredSampleValue = drpsvsmpl.unSample(this.calcDoubleResolutionSampleValue(b, l, s, highResolutionPredSampleValue, image)); //?
 					//PREDICTED SAMMPLE VALUE 4.7.4
 					long predictedSampleValue = psvsmpl.unSample(this.calcPredictedSampleValue(doubleResolutionPredSampleValue));
 					//PRED SAMPLE VALUE END

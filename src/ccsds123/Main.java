@@ -41,7 +41,7 @@ public class Main {
 	        			hid = hid.resize(iArgs.bands, iArgs.lines, iArgs.samples);
 	        		
 	        		if (iArgs.compress)
-	        			CCSDS.compress(new Compressor(), hid, iArgs.output);
+	        			CCSDS.compress(new Compressor(), hid, iArgs.output, iArgs);
 	        		else
 	        			CCSDS.compare(new Compressor(), hid, iArgs);
 				} catch (IOException e) {
