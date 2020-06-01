@@ -26,6 +26,9 @@ public class CCSDSCLI {
 	public static final String OPTION_CUSTOM_SIZE = "custom_size";
 	public static final String OPTION_BITDEPTH = "bitdepth";
 	public static final String OPTION_SIGNED = "signed";
+	/** Custom algorithm options */
+	public static final String OPTION_MAX_ABS_ERR = "max_abs_err";
+	public static final String OPTION_MAX_REL_ERR = "max_rel_err";
 	
 	
 	/* Options for jypec */
@@ -40,6 +43,9 @@ public class CCSDSCLI {
 		Option compare 			= new Option("k", OPTION_COMPARE, false, "compare compressed/decompressed image");
 		Option bitdepth			= new Option(null, OPTION_BITDEPTH, true, "bit depth for decompressed image");
 		Option signed			= new Option(null, OPTION_SIGNED, false, "signed flag for decompressed image");
+		
+		Option maxabserr		= new Option(null, OPTION_MAX_ABS_ERR, true, "maximum absolute error allowed");
+		Option maxrelerr		= new Option(null, OPTION_MAX_REL_ERR, true, "maximum relative error allowed");
 		
 		/* input output files */
 		Option input = Option
@@ -98,6 +104,8 @@ public class CCSDSCLI {
 		ccsds123Options.addOption(customSize);
 		ccsds123Options.addOption(bitdepth);
 		ccsds123Options.addOption(signed);
+		ccsds123Options.addOption(maxabserr);
+		ccsds123Options.addOption(maxrelerr);
 	}
 	
 	

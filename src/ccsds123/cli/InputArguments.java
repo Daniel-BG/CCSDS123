@@ -3,6 +3,8 @@ package ccsds123.cli;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
+import ccsds123.core.Constants;
+
 
 /**
  * Store input arguments in their parsed form for easier processing
@@ -45,6 +47,9 @@ public class InputArguments {
 	/** signed samples (Decompression) */
 	public boolean signed;
 	
+	//custom algorithm stuff
+	public int max_abs_err = Constants.DEFAULT_ABS_ERR_VALUE;
+	public int max_rel_err = Constants.DEFAULT_REL_ERR_VALUE;
 	
 	
 	
@@ -81,6 +86,12 @@ public class InputArguments {
 		if (line.hasOption(CCSDSCLI.OPTION_BITDEPTH))
 			args.bitDepth = Integer.parseInt(line.getOptionValue(CCSDSCLI.OPTION_BITDEPTH));
 		args.signed   = line.hasOption(CCSDSCLI.OPTION_SIGNED);
+		
+		//parse algorithm values
+		if (line.hasOption(CCSDSCLI.OPTION_MAX_ABS_ERR))
+			args.max_abs_err = Integer.parseInt(line.getOptionValue(CCSDSCLI.OPTION_MAX_ABS_ERR));
+		if (line.hasOption(CCSDSCLI.OPTION_MAX_REL_ERR))
+			args.max_rel_err = Integer.parseInt(line.getOptionValue(CCSDSCLI.OPTION_MAX_REL_ERR));
 		
 		return args;
 	}

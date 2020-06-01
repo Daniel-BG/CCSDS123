@@ -14,6 +14,7 @@ import com.jypec.util.io.HyperspectralImageReader;
 import ccsds123.cli.CCSDSCLI;
 import ccsds123.cli.InputArguments;
 import ccsds123.core.Compressor;
+import ccsds123.core.Constants;
 
 
 public class Main {
@@ -29,6 +30,15 @@ public class Main {
 	        //parse the command line arguments
 	        CommandLine line = parser.parse( CCSDSCLI.getOptions(), args );
 	        InputArguments iArgs = InputArguments.parseFrom(line);
+	        Compressor c = new Compressor();
+	        
+	        //set compressor parameters
+	        int[] absErr = new int[1];
+	        int[] relErr = new int[1];
+	        absErr[0] = iArgs.max_abs_err;
+	        relErr[0] = iArgs.max_rel_err;
+	        c.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, absErr, relErr, true, true);
+	        
 	        //go through options
 	        if (iArgs.help) {
 	        	printHelp();
@@ -41,15 +51,15 @@ public class Main {
 	        			hid = hid.resize(iArgs.bands, iArgs.lines, iArgs.samples);
 	        		
 	        		if (iArgs.compress)
-	        			CCSDS.compress(new Compressor(), hid, iArgs.output, iArgs);
+	        			CCSDS.compress(c, hid, iArgs.output, iArgs);
 	        		else
-	        			CCSDS.compare(new Compressor(), hid, iArgs);
+	        			CCSDS.compare(c, hid, iArgs);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 	        } else if (iArgs.decompress) {
 	        	try {
-					CCSDS.decompress(new Compressor(), iArgs);
+					CCSDS.decompress(c, iArgs);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}

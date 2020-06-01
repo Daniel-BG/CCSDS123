@@ -16,6 +16,8 @@ import ccsds123.util.Utils;
  *
  */
 public class Compressor {
+	private static final boolean SHOW_PROGRESS = false;
+	
 	private LocalSumType localSumType;
 	private int depth;
 	private boolean fullPredictionMode;
@@ -268,6 +270,9 @@ public class Compressor {
 	public void compress(int [][][] block, int bands, int lines, int samples, BitOutputStream bos) throws IOException {
 		this.checkParameterSanity(bands);
 		
+		//system out the compression parameters
+		System.out.println("AbsErr: " + this.getAbsErrVal(0) + " RelErr: " + this.getRelErrVal(0));
+		
 		int [][][] repBlock = new int[bands][lines][samples];
 		int [][][] diffBlock = new int[bands][lines][samples];
 		
@@ -291,10 +296,11 @@ public class Compressor {
 					int t = l*samples + s;
 					ssmpl.sample(block[b][l][s]);
 					
-					if ((b+s*bands+l*bands*samples) % 10000 == 0) {
-						System.out.println((b+s*bands+l*bands*samples) / 10000 + "0k / " + (lines*bands*samples) / 1000 + "k");
+					if (SHOW_PROGRESS) {
+						if ((b+s*bands+l*bands*samples) % 1000000 == 0) {
+							System.out.println((b+s*bands+l*bands*samples) / 10000 + "0k / " + (lines*bands*samples) / 1000 + "k");
+						}
 					}
-					
 					//compressing sample block[b][l][s]
 					if (t == 0) {
 						long doubleResolutionPredSampleValue = drpsvsmpl.sample(this.calcDoubleResolutionSampleValue(b, 0, 0, 0, diffBlock));
@@ -428,8 +434,10 @@ public class Compressor {
 				for (int b = 0; b < bands; b++) {
 					int t = l*samples + s;
 					
-					if ((b+s*bands+l*bands*samples) % 10000 == 0) {
-						System.out.println((b+s*bands+l*bands*samples) / 10000 + "0k / " + (lines*bands*samples) / 1000 + "k");
+					if (SHOW_PROGRESS) {
+						if ((b+s*bands+l*bands*samples) % 1000000 == 0) {
+							System.out.println((b+s*bands+l*bands*samples) / 10000 + "0k / " + (lines*bands*samples) / 1000 + "k");
+						}
 					}
 					
 					//separate to clearly define first sample processing and other sample processing 

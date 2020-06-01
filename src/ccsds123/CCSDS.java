@@ -43,6 +43,7 @@ public class CCSDS {
 		
 		if (args.showCompressionStats) {
 			System.out.println("Size: " + hid.getBitSize() + " -> " + bos.getBitsOutput());
+			System.out.println("Ratio: " + ((double) bos.getBitsOutput() / (double) hid.getBitSize()));
 		}
 		
 		bos.close();
@@ -86,13 +87,13 @@ public class CCSDS {
 		
 		//output metrics
 		System.out.println("PSNR: " + ImageComparisons.rawPSNR(fdm, sdm, dynRange));
-		System.out.println("Normalized PSNR is: " + ImageComparisons.normalizedPSNR(fdm, sdm));
-		System.out.println("powerSNR is: " + ImageComparisons.powerSNR(fdm, sdm));
+		//System.out.println("Normalized PSNR is: " + ImageComparisons.normalizedPSNR(fdm, sdm));
+		//System.out.println("powerSNR is: " + ImageComparisons.powerSNR(fdm, sdm));
 		System.out.println("SNR: " + ImageComparisons.SNR(fdm, sdm));
 		System.out.println("MSE: " + ImageComparisons.MSE(fdm, sdm));
-		System.out.println("maxSE is: " + ImageComparisons.maxSE(fdm, sdm));
-		System.out.println("MSR is: " + ImageComparisons.MSR(fdm, sdm));
-		System.out.println("SSIM is: " + ImageComparisons.SSIM(fdm, sdm, dynRange));
+		//System.out.println("maxSE is: " + ImageComparisons.maxSE(fdm, sdm));
+		//System.out.println("MSR is: " + ImageComparisons.MSR(fdm, sdm));
+		//System.out.println("SSIM is: " + ImageComparisons.SSIM(fdm, sdm, dynRange));
 	}
 	
 }

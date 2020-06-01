@@ -10,8 +10,8 @@ public class Constants {
 
 	////////LOSSY PARAMETERS////////
 	public static final int MIN_ERROR_LIMIT_BIT_DEPTH = 1;
-	public static final int DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH = 12;
-	public static final int DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH = 12;
+	public static final int DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH = 14;
+	public static final int DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH = 14;
 	public static int get_MAX_ERROR_LIMIT_BIT_DEPTH(int depth) { return Math.min(16, depth-1); }
 	public static final int MAX_ERROR_LIMIT_BIT_DEPTH = 16;
 	
@@ -19,11 +19,11 @@ public class Constants {
 	public static final boolean DEFAULT_USE_REL_ERR = true;
 	
 	public static final int MIN_ABS_ERR_VALUE = 0;
-	public static final int DEFAULT_ABS_ERR_VALUE = 1024;
+	public static final int DEFAULT_ABS_ERR_VALUE = 0;
 	public static int get_MAX_ABS_ERR_VALUE(int aelbd) { return (1 << aelbd) - 1; }
 	
 	public static final int MIN_REL_ERR_VALUE = 0;
-	public static final int DEFAULT_REL_ERR_VALUE = 1024;
+	public static final int DEFAULT_REL_ERR_VALUE = 0;
 	public static int get_MAX_REL_ERR_VALUE(int relbd) { return (1 << relbd) - 1; }
 	/////////////////////////////
 	
@@ -34,11 +34,11 @@ public class Constants {
 	public static final int MAX_RESOLUTION = 4;
 	
 	public static final int MIN_DAMPING = 0;
-	public static final int DEFAULT_DAMPING_VALUE = 2;
+	public static final int DEFAULT_DAMPING_VALUE = 4;
 	public static int get_MAX_DAMPING(int resolution) { return (1 << resolution) - 1; }
 	
 	public static final int MIN_OFFSET = 0;
-	public static final int DEFAULT_OFFSET_VALUE = 2;
+	public static final int DEFAULT_OFFSET_VALUE = 4;
 	public static int get_MAX_OFFSET(int resolution) { return (1 << resolution) - 1; }
 	///////////////////////////////
 	

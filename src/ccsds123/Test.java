@@ -2,12 +2,16 @@ package ccsds123;
 
 public class Test {
 	
-	static String input = "C:/Users/Daniel/Hiperspectral images/Reno_Radiance_wIGMGLT/0913-1248_rad.dat";
+	//static String input = "C:/Users/Daniel/Hiperspectral images/cupriteBSQ/Cuprite";
+	//static String input = "C:/Users/Daniel/Hiperspectral images/Reno_Radiance_wIGMGLT/0913-1248_rad.dat";
 	//static String input = "C:/Users/Daniel/Hiperspectral images/Gulf_Wetlands_Sample_Rad/Suwannee_0609-1331_rad.dat";
 	//static String input = "C:/Users/Daniel/Hiperspectral images/Beltsville_Radiance_w_IGM/0810_2022_rad.dat";
-	static String inputHeader = "C:/Users/Daniel/Hiperspectral images/Reno_Radiance_wIGMGLT/0913-1248_rad.hdr";
+	static String input = "C:/Users/Daniel/Hiperspectral images/Gulf_Wetlands_Sample_Rad/Suwannee_0609-1331_rad.dat";
+	//static String inputHeader = "C:/Users/Daniel/Hiperspectral images/cupriteBSQ/Cuprite.hdr";
+	//static String inputHeader = "C:/Users/Daniel/Hiperspectral images/Reno_Radiance_wIGMGLT/0913-1248_rad.hdr";
 	//static String inputHeader = "C:/Users/Daniel/Hiperspectral images/Gulf_Wetlands_Sample_Rad/Suwannee_0609-1331_rad.hdr";
 	//static String inputHeader = "C:/Users/Daniel/Hiperspectral images/Beltsville_Radiance_w_IGM/0810_2022_rad.hdr";
+	static String inputHeader = "C:/Users/Daniel/Hiperspectral images/Gulf_Wetlands_Sample_Rad/Suwannee_0609-1331_rad.hdr";
 	
 	
 	static String output = "C:/Users/Daniel/Basurero/output.dat";
@@ -34,17 +38,28 @@ public class Test {
 	
 	static String[] argsCompare =
 		{
-				"-i", input,
-				"--input_header", inputHeader,
-				"-o", output,
-				"-k", "--stats",
-				"--bitdepth", "16",
-				//"--custom_size", "32", "32", "32",
-				"--custom_size", "64", "64", "64"
+			"--max_abs_err", "0",
+			"--max_rel_err", "0",
+			"-i", input,
+			"--input_header", inputHeader,
+			"-o", output,
+			"-k", "--stats",
+			"--bitdepth", "16",
+			//"--custom_size", "32", "32", "32",
+			//"--custom_size", "360", "64", "64"
 		};
 
 	public static void main(String[] args) {
-		Main.main(argsCompare);
+		
+		for (int i = 3; i <= 13; i++) {
+			argsCompare[1] = Integer.toString(1 << i);
+			argsCompare[3] = Integer.toString(1 << i);
+			Main.main(argsCompare);
+			System.out.println();
+		}
+		
+		
+		
 		
 		//Main.main(argsCompression);
 		//Main.main(argsDecompression);
