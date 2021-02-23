@@ -13,6 +13,8 @@ import com.jypec.util.io.HyperspectralImageReader;
 
 import ccsds123.cli.CCSDSCLI;
 import ccsds123.cli.InputArguments;
+import ccsds123.core.DirectCompressor;
+import ccsds123.core.SegmentedCompressor;
 import ccsds123.core.Compressor;
 import ccsds123.core.Constants;
 
@@ -30,7 +32,7 @@ public class Main {
 	        //parse the command line arguments
 	        CommandLine line = parser.parse( CCSDSCLI.getOptions(), args );
 	        InputArguments iArgs = InputArguments.parseFrom(line);
-	        Compressor c = new Compressor();
+	        Compressor c = new SegmentedCompressor();
 	        
 	        //set compressor parameters
 	        int[] absErr = new int[1];
@@ -38,6 +40,7 @@ public class Main {
 	        absErr[0] = iArgs.max_abs_err;
 	        relErr[0] = iArgs.max_rel_err;
 	        c.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, absErr, relErr, true, true);
+	        
 	        
 	        //go through options
 	        if (iArgs.help) {

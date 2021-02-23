@@ -45,7 +45,8 @@ public class Test {
 			"-o", output,
 			"-k", "--stats",
 			"--bitdepth", "16",
-			//"--custom_size", "32", "32", "32",
+			"--custom_size", "32", "32", "32",
+			//"--custom_size", "32", "2", "3",
 			//"--custom_size", "360", "64", "64"
 		};
 
