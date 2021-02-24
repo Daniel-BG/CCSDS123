@@ -33,6 +33,7 @@ public class Main {
 	        CommandLine line = parser.parse( CCSDSCLI.getOptions(), args );
 	        InputArguments iArgs = InputArguments.parseFrom(line);
 	        Compressor c = new SegmentedCompressor();
+	        //Compressor c = new DirectCompressor();
 	        
 	        //set compressor parameters
 	        int[] absErr = new int[1];

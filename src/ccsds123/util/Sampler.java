@@ -10,7 +10,7 @@ import java.util.LinkedList;
 public class Sampler <T> {
 	
 	private static final boolean DISABLE_CHECKING = true;
-	private static final boolean DISABLE_SAMPLING = true;
+	private static final boolean DISABLE_SAMPLING = false;
 	
 	private Deque<T> samplingDQ, checkingDQ;
 	private String filename;

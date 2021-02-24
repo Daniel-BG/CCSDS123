@@ -52,7 +52,7 @@ public class Test {
 
 	public static void main(String[] args) {
 		
-		for (int i = 3; i <= 13; i++) {
+		for (int i = 3; i <= 3; i++) {
 			argsCompare[1] = Integer.toString(1 << i);
 			argsCompare[3] = Integer.toString(1 << i);
 			Main.main(argsCompare);

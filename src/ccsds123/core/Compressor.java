@@ -1,14 +1,36 @@
 package ccsds123.core;
-
 import java.io.IOException;
 
 import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
 
 import ccsds123.core.Constants.LocalSumType;
+import ccsds123.util.Sampler;
 import ccsds123.util.Utils;
 
 public abstract class Compressor {
+	
+	protected Sampler<Integer> ssmpl 		= new Sampler<Integer>("c_s");
+	protected Sampler<Long> drpsvsmpl 		= new Sampler<Long>("c_drpsv");
+	protected Sampler<Long> psvsmpl	 		= new Sampler<Long>("c_psv");
+	protected Sampler<Long> prsmpl	 		= new Sampler<Long>("c_pr");
+	protected Sampler<Integer> wsmpl		= new Sampler<Integer>("c_w");
+	protected Sampler<Long> wusesmpl		= new Sampler<Long>("c_wuse");
+	protected Sampler<Long> drpesmpl		= new Sampler<Long>("c_drpe");
+	protected Sampler<Long> drsrsmpl		= new Sampler<Long>("c_drsr");
+	protected Sampler<Long> cqbcsmpl		= new Sampler<Long>("c_cqbc");
+	protected Sampler<Long> mevsmpl			= new Sampler<Long>("c_mev");
+	protected Sampler<Long> hrpsvsmpl		= new Sampler<Long>("c_hrpsv");
+	protected Sampler<Long> pcdsmpl			= new Sampler<Long>("c_pcd");
+	protected Sampler<Long> cldsmpl			= new Sampler<Long>("c_cld");
+	protected Sampler<Long> nwdsmpl			= new Sampler<Long>("c_nwd");
+	protected Sampler<Long> wdsmpl			= new Sampler<Long>("c_wd");
+	protected Sampler<Long> ndsmpl			= new Sampler<Long>("c_nd");
+	protected Sampler<Long> lssmpl			= new Sampler<Long>("c_ls");
+	protected Sampler<Long> qismpl			= new Sampler<Long>("c_qi");
+	protected Sampler<Long> srsmpl			= new Sampler<Long>("c_sr");
+	protected Sampler<Long> tsmpl			= new Sampler<Long>("c_ts");
+	protected Sampler<Long> mqismpl			= new Sampler<Long>("c_mqi");
 	
 	protected LocalSumType localSumType;
 	protected int depth;
@@ -41,8 +63,15 @@ public abstract class Compressor {
 	protected int [] accumulatorInitializationConstant;
 	
 	
+	/** DEBUG STUFF */
+	private static final String sampleBaseDir = "C:/Users/Daniel/Basurero/out/";
+	private static final String sampleExt = ".smp";	
+	
 	public Compressor() {
 		this.setDefaults();
+		
+		Sampler.setSamplePath(sampleBaseDir);
+		Sampler.setSampleExt(sampleExt);
 	}
 
 	/**
@@ -244,10 +273,168 @@ public abstract class Compressor {
 	public void compress(int [][][] block, int bands, int lines, int samples, BitOutputStream bos) throws IOException {
 		this.checkParameterSanity(bands);
 		doCompress(block, bands, lines, samples, bos);
+		
+		ssmpl.export();
+		drpsvsmpl.export();
+		psvsmpl.export();
+		prsmpl.export();
+		wsmpl.export();
+		wusesmpl.export();
+		drpesmpl.export();
+		drsrsmpl.export();
+		cqbcsmpl.export();
+		mevsmpl.export();
+		hrpsvsmpl.export();
+		pcdsmpl.export();
+		cldsmpl.export();
+		nwdsmpl.export();
+		wdsmpl.export();
+		ndsmpl.export();
+		lssmpl.export();
+		qismpl.export();
+		srsmpl.export();
+		tsmpl.export();
+		mqismpl.export();
 	}
 	
 	public abstract void doCompress(int [][][] block, int bands, int lines, int samples, BitOutputStream bos) throws IOException;
 	
 	public abstract int[][][] decompress(int bands, int lines, int samples, BitInputStream bis) throws IOException;
+	
+	
+	
+	protected long calcHighResolutionPredSampleValue(long predictedCentralDiff, long localSum) { // EQ 37
+		long highResolutionPredSampleValue = 
+				Utils.modR(predictedCentralDiff + ((localSum - (ParameterCalc.sMid(this.depth) << 2)) << this.omega), this.r)
+				+ (ParameterCalc.sMid(this.depth) << (this.omega + 2))
+				+ (1 << (this.omega + 1));
+		return Utils.clamp(
+				highResolutionPredSampleValue, 
+				ParameterCalc.sMin() << (this.omega + 2), 
+				(ParameterCalc.sMax(this.depth) << (this.omega + 2)) + (1 << (this.omega + 1)));
+	}
+	
+	protected long calcPredictedSampleValue(long doubleResolutionPredSampleValue) { //EQ 39
+		return doubleResolutionPredSampleValue >> 1;
+	}
 
+	protected long calcPredictionResidual(long sample, long predictedSampleValue) { //EQ 40
+		 return sample - predictedSampleValue;
+	}
+	
+	protected long calcMaxErrVal(int b, long predSampleValue) { //EQ 42, 43, 44, 45
+		long maxErrVal = 0;
+		if (this.useAbsoluteErrLimit && this.useRelativeErrLimit) {
+			maxErrVal = Math.min(this.getAbsErrVal(b), (this.getRelErrVal(b)*Math.abs(predSampleValue)) >> this.depth); //EQ 45
+		} else if (this.useRelativeErrLimit) {
+			maxErrVal = (this.getRelErrVal(b)*Math.abs(predSampleValue)) >> this.depth; //EQ 44
+		} else if (this.useAbsoluteErrLimit) {
+			maxErrVal = this.getAbsErrVal(b); //EQ 43
+		} else { //no errors
+			maxErrVal = 0; //EQ 42
+		}
+		return maxErrVal;
+	}
+	
+	protected long calcQuantizerIndex(long predResidual, long maxErrVal, int t) { //EQ 41
+		if (t == 0)
+			return predResidual;
+		return UniformQuantizer.quantize(predResidual, maxErrVal);
+	}
+	
+	protected long calcClipQuantizerBinCenter(long predictedSampleValue, long quantizerIndex, long maxErrVal) { //EQ 48
+		return Utils.clamp(predictedSampleValue + quantizerIndex*(2*maxErrVal + 1), ParameterCalc.sMin(), ParameterCalc.sMax(this.depth));
+	}
+	
+	protected long calcDoubleResolutionPredictionError(long clippedQuantizerBinCenter, long doubleResolutionPredictedSampleValue) { //EQ 49
+		return (clippedQuantizerBinCenter << 1) - doubleResolutionPredictedSampleValue;
+	}
+	
+	protected long calcDoubleResolutionSampleRepresentative(int b, long clippedQuantizerBinCenter, long quantizerIndex, long maxErrVal, long highResolutionPredSampleValue) { //EQ 47
+		long fm = (1 << this.getResolution(b)) - this.getDamping(b);
+		long sm = (clippedQuantizerBinCenter << this.omega) - ((Utils.signum(quantizerIndex)*maxErrVal*this.getOffset(b)) << (this.omega - this.getResolution(b)));
+		long add = this.getDamping(b)*highResolutionPredSampleValue - (this.getDamping(b) << (this.omega + 1)); 
+		long sby = this.omega + this.getResolution(b) + 1; 
+		return (((fm * sm) << 2) + add) >> sby;
+	}
+	
+	protected long calcWeightUpdateScalingExponent(int t, int samples) { //EQ 50
+		return Utils.clamp(this.vmin + ((t - samples) >> this.tIncExp), this.vmin, this.vmax) + this.depth - this.omega;
+	}
+	
+	
+	protected int updateWeight(int weight, long doubleResolutionPredictionError, long diff, long weightUpdateScalingExponent, int weightExponentOffset, int t) { //EQ 51,52,53,54
+		if (t == 0)
+			throw new IllegalArgumentException("Weight updated undefined for t=0");
+		//first of all calculate the exponent above to see if its positive or negative
+		int exponent = (int) weightUpdateScalingExponent + weightExponentOffset;
+		int result = weight;
+		if (exponent > 0) {
+			result += ((((Utils.signumPlus((int) doubleResolutionPredictionError)*diff) >> exponent) + 1) >> 1);
+		} else {
+			result += ((((Utils.signumPlus((int) doubleResolutionPredictionError)*diff) << (-exponent)) + 1) >> 1);
+		}
+		return Utils.clamp(
+				result, 
+				ParameterCalc.wMin(this.omega), 
+				ParameterCalc.wMax(this.omega));
+	}
+	
+	protected long getLowerTheta(int t, long predictedSampleValue, long maxErrVal) { //EQ 56 a
+		if (t == 0) 
+			return predictedSampleValue - (int) ParameterCalc.sMin();
+		else 
+			return (predictedSampleValue - ParameterCalc.sMin() + maxErrVal) / (2*maxErrVal + 1);
+	}
+	
+	protected long getUpperTheta(int t, long predictedSampleValue, long maxErrVal) { //EQ 56 b
+		if (t == 0) 
+			return (int) ParameterCalc.sMax(this.depth) - predictedSampleValue;
+		else 
+			return (ParameterCalc.sMax(this.depth) - predictedSampleValue + maxErrVal) / (2*maxErrVal + 1);
+	}
+	
+	protected long calcTheta(int t, long predictedSampleValue, long maxErrVal) { //EQ 56
+		return Math.min(getLowerTheta(t, predictedSampleValue, maxErrVal), getUpperTheta(t, predictedSampleValue, maxErrVal));
+	}
+	
+	protected long calcMappedQuantizerIndex(long quantizerIndex, long theta, long doubleResolutionPredictedSampleValue) { //EQ 55
+		if (Math.abs(quantizerIndex) > theta) {
+			return Math.abs(quantizerIndex) + theta;
+		} else {
+			long val;
+			if (doubleResolutionPredictedSampleValue % 2 == 0) {
+				val = quantizerIndex;
+			} else {
+				val = -quantizerIndex;
+			}
+			if (val >= 0 && theta >= val) {
+				return Math.abs(quantizerIndex) << 1;
+			} else {
+				return (Math.abs(quantizerIndex) << 1) - 1;
+			}
+		}
+	}
+	
+	protected long calcSampleRepresentative(int l, int s, long doubleResolutionSampleRepresentative, int sample) { //EQ 46
+		if (l > 0 || s > 0) {
+			return (doubleResolutionSampleRepresentative + 1) >> 1;
+		} else {
+			return sample;
+		}
+	}
+	
+	protected long calcCentralLocalDiff(int l, int s, long repr, long localSum) { //EQ 24
+		if (l == 0 && s == 0)
+			throw new IllegalArgumentException("Central local diff not defined for t=0");
+		long res = (repr << 2) - localSum;
+		/*long res;
+		if (l == 0)
+			res = (repBlock[b][l][s-1] << 2) - localSum;
+		else if (s == 0)
+			res = (repBlock[b][l-1][s] << 2) - localSum;
+		else 
+			res = (repBlock[b][l-1][s] << 2) - localSum;*/
+		return res;
+	}
 }
