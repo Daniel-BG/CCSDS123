@@ -2,7 +2,6 @@ package ccsds123.core;
 
 import java.io.IOException;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Queue;
 
 import com.jypec.util.Pair;
@@ -244,11 +243,11 @@ public class SegmentedCompressor extends Compressor {
 			
 			////LOCAL DIFF BEGIN 4.5
 			long northDiff, westDiff, northWestDiff;
-			if (!currCoord.firstLine() && !currCoord.firstSample()) {
+			if (!currCoord.firstSample() && !currCoord.firstLine()) {
 				northDiff = (northRep << 2) - localSum;
 				westDiff = (westRep << 2) - localSum;
 				northWestDiff = (northWestRep << 2) - localSum;
-			} else if (currCoord.firstLine() && !currCoord.firstSample()) {
+			} else if (currCoord.firstSample() && !currCoord.firstLine()) {
 				northDiff = (northRep << 2) - localSum;
 				westDiff = (northRep << 2) - localSum;
 				northWestDiff = (northRep << 2) - localSum;
@@ -348,14 +347,9 @@ public class SegmentedCompressor extends Compressor {
 			long mappedQuantizerIndex = this.calcMappedQuantizerIndex(quantizerIndex, theta, doubleResolutionPredSampleValue);
 			
 			//CALCULATE SAMPLE REPRESENTATIVE AND NEXT DIFFERENCE
-			long currRep, currDif;
-			if (currCoord.getT(samples) == 0) {
-				currRep = this.calcSampleRepresentative(0, 0, 0, currSample);
-				currDif = 0;
-			} else {
-				currRep = this.calcSampleRepresentative(currCoord.line, currCoord.sample, doubleResolutionSampleRepresentative, currSample);
-				currDif = this.calcCentralLocalDiff(currCoord.line, currCoord.sample, currRep, localSum);
-			}
+			long currRep = this.calcSampleRepresentative(currCoord.line, currCoord.sample, doubleResolutionSampleRepresentative, currSample);
+			long currDif = this.calcCentralLocalDiff(currCoord.line, currCoord.sample, currRep, localSum);
+			
 			
 			
 			
@@ -442,19 +436,19 @@ public class SegmentedCompressor extends Compressor {
 				for (int k = 0; k < bands; k++) {
 					entropyCoder.code((int) mqiarr[k][i][j], i*samples+j, k, bos);
 					
-					if (i > 0 || j > 0) {
-						cldsmpl.sample(cldarr[k][i][j]);
-						cqbcsmpl.sample(cqbcarr[k][i][j]);
-						drpesmpl.sample(dprearr[k][i][j]);
-						drsrsmpl.sample(drsrarr[k][i][j]);
-						hrpsvsmpl.sample(hrpsvarr[k][i][j]);
-						lssmpl.sample(lsarr[k][i][j]);
-						ndsmpl.sample(ndarr[k][i][j]);
-						nwdsmpl.sample(nwdarr[k][i][j]);
-						pcdsmpl.sample(pcdarr[k][i][j]);
-						wdsmpl.sample(wdarr[k][i][j]);
-						wusesmpl.sample(wusearr[k][i][j]);
-					}
+					
+					cldsmpl.sample(cldarr[k][i][j]);
+					cqbcsmpl.sample(cqbcarr[k][i][j]);
+					drpesmpl.sample(dprearr[k][i][j]);
+					drsrsmpl.sample(drsrarr[k][i][j]);
+					hrpsvsmpl.sample(hrpsvarr[k][i][j]);
+					lssmpl.sample(lsarr[k][i][j]);
+					ndsmpl.sample(ndarr[k][i][j]);
+					nwdsmpl.sample(nwdarr[k][i][j]);
+					pcdsmpl.sample(pcdarr[k][i][j]);
+					wdsmpl.sample(wdarr[k][i][j]);
+					wusesmpl.sample(wusearr[k][i][j]);
+					
 					
 					drpsvsmpl.sample(drpsvarr[k][i][j]);
 					mevsmpl.sample(mevarr[k][i][j]);
@@ -465,6 +459,7 @@ public class SegmentedCompressor extends Compressor {
 					ssmpl.sample(sarr[k][i][j]);
 					srsmpl.sample(srarr[k][i][j]);
 					tsmpl.sample(tarr[k][i][j]);
+					@SuppressWarnings("unchecked")
 					Queue<Integer> cwl = (Queue<Integer>) warr[k][i][j];
 					while (!cwl.isEmpty())
 						wsmpl.sample(cwl.remove());					

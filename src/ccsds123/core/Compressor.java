@@ -425,8 +425,8 @@ public abstract class Compressor {
 	}
 	
 	protected long calcCentralLocalDiff(int l, int s, long repr, long localSum) { //EQ 24
-		if (l == 0 && s == 0)
-			throw new IllegalArgumentException("Central local diff not defined for t=0");
+		/*if (l == 0 && s == 0)
+			throw new IllegalArgumentException("Central local diff not defined for t=0");*/
 		long res = (repr << 2) - localSum;
 		/*long res;
 		if (l == 0)

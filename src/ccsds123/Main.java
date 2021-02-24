@@ -13,7 +13,6 @@ import com.jypec.util.io.HyperspectralImageReader;
 
 import ccsds123.cli.CCSDSCLI;
 import ccsds123.cli.InputArguments;
-import ccsds123.core.DirectCompressor;
 import ccsds123.core.SegmentedCompressor;
 import ccsds123.core.Compressor;
 import ccsds123.core.Constants;
