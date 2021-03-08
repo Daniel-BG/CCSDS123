@@ -16,6 +16,7 @@ import ccsds123.cli.InputArguments;
 import ccsds123.core.SegmentedCompressor;
 import ccsds123.core.Compressor;
 import ccsds123.core.Constants;
+import ccsds123.core.DirectCompressor;
 
 
 public class Main {

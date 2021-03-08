@@ -15,6 +15,9 @@ import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
 import ccsds123.cli.InputArguments;
 import ccsds123.core.Compressor;
+import ccsds123.core.Constants;
+import ccsds123.core.DirectCompressor;
+import ccsds123.core.SamplingUnit;
 
 public class CCSDS {
 	

@@ -31,18 +31,17 @@ public class ThreeDCoordinate {
 			return true;
 			
 		case DIAGONAL:
-			this.z--;
-			this.t++;
-			if (z < 0) {
-				if (this.t < this.height) { //we are on first diagonals up to min(swath,height)
-					this.z = this.t;
+			
+			if (z == 0) {
+				if (this.t < this.height - 1) { //we are on first diagonals up to min(swath,height)
+					this.z = this.t + 1;
 					this.t = 0;
 				} else { //normal case
 					this.z = this.height - 1;
-					this.t = this.t - this.height + 1;
+					this.t = this.t - this.height + 2;
 				}
-			} else if (t >= swath) {
-				if (z == this.height - 2) { //last sample
+			} else if (t >= swath - 1) {
+				if (z - 1 == this.height - 2) { //last sample
 					this.z = 0;
 					this.t = 0;
 					return false;
@@ -56,8 +55,10 @@ public class ThreeDCoordinate {
 						this.t = this.z - (this.height - 1);
 						this.z = this.height - 1;
 					}
-						
 				}
+			} else {
+				this.z--;
+				this.t++;
 			}
 			return true;
 		default:

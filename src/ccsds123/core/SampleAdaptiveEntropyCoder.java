@@ -26,11 +26,13 @@ public class SampleAdaptiveEntropyCoder {
 	private int [] accumulator;
 	private int counterResetValue;
 	
-	public SampleAdaptiveEntropyCoder(int uMax, int depth, int bands, int gammaZero, int gammaStar, int [] accumulatorInitializationConstant) {
-		this.reset(uMax, depth, bands, gammaZero, gammaStar, accumulatorInitializationConstant);
+	private SamplingUnit su;
+	
+	public SampleAdaptiveEntropyCoder(int uMax, int depth, int bands, int gammaZero, int gammaStar, int [] accumulatorInitializationConstant, SamplingUnit su) {
+		this.reset(uMax, depth, bands, gammaZero, gammaStar, accumulatorInitializationConstant, su);
 	}
 	
-	public void reset(int uMax, int depth, int bands, int gammaZero, int gammaStar, int [] accumulatorInitializationConstant) {
+	public void reset(int uMax, int depth, int bands, int gammaZero, int gammaStar, int [] accumulatorInitializationConstant, SamplingUnit su) {
 		if (uMax < 8 || uMax > 32)
 			throw new IllegalArgumentException("Umax out of bounds!");
 		this.uMax = uMax;
@@ -47,12 +49,10 @@ public class SampleAdaptiveEntropyCoder {
 		for (int b = 0; b < accumulator.length; b++) {
 			accumulator[b] = this.calcInitialAccValue(Utils.getVectorValue(accumulatorInitializationConstant, b, Constants.DEFAULT_ACC_INIT_CONSTANT));
 		}
+		this.su = su;
 	}
 	
 	
-	Sampler<Integer> uismpl			= new Sampler<Integer>("c_ui");
-	Sampler<Integer> uicismpl		= new Sampler<Integer>("c_uici");
-	Sampler<Integer> accsmpl		= new Sampler<Integer>("c_acc");
 	
 	
 	private int getCounterValue(int t) {
@@ -132,31 +132,31 @@ public class SampleAdaptiveEntropyCoder {
 	
 	public void code(int mappedQuantizerIndex, int t, int b, BitOutputStream bos) throws IOException {
 		if (t == 0) {
-			bos.writeBits(uismpl.sample(mappedQuantizerIndex), this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+			bos.writeBits(this.su.uismpl.sample(mappedQuantizerIndex), this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 		} else {
 			int cValue = this.getCounterValue(t);
-			int uInt = uismpl.sample(mappedQuantizerIndex);
-			int uIntCodeIndex = uicismpl.sample(this.getUintCodeIndex(b, t, cValue));
+			int uInt = this.su.uismpl.sample(mappedQuantizerIndex);
+			int uIntCodeIndex = this.su.uicismpl.sample(this.getUintCodeIndex(b, t, cValue));
 			//code
 			this.lengthLimitedGolombPowerOfTwoCode(uInt, uIntCodeIndex, bos);
 			//update accumulator
 			this.updateAccumulator(b, t, mappedQuantizerIndex, cValue);
-			accsmpl.sample(this.accumulator[b]);
+			this.su.accsmpl.sample(this.accumulator[b]);
 		}
 	}
 	
 	
 	public int decode(int t, int b, BitInputStream bis) throws IOException {
 		if (t == 0) {
-			int res = uismpl.unSample(bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST));
+			int res = this.su.uismpl.unSample(bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST));
 			return res;
 		} else {
 			int cValue = this.getCounterValue(t);
-			int uIntCodeIndex = uicismpl.unSample(this.getUintCodeIndex(b, t, cValue));
-			int uInt = uismpl.unSample(this.lengthLimitedGolombPowerOfTwoDecode(uIntCodeIndex, bis));
+			int uIntCodeIndex = this.su.uicismpl.unSample(this.getUintCodeIndex(b, t, cValue));
+			int uInt = this.su.uismpl.unSample(this.lengthLimitedGolombPowerOfTwoDecode(uIntCodeIndex, bis));
 			//update accumulator
 			this.updateAccumulator(b, t, uInt, cValue);
-			accsmpl.unSample(this.accumulator[b]);
+			this.su.accsmpl.unSample(this.accumulator[b]);
 			return uInt;
 		}
 	}

@@ -9,7 +9,7 @@ import java.util.LinkedList;
 
 public class Sampler <T> {
 	
-	private static final boolean DISABLE_CHECKING = true;
+	private static final boolean DISABLE_CHECKING = false;
 	private static final boolean DISABLE_SAMPLING = false;
 	
 	private Deque<T> samplingDQ, checkingDQ;
@@ -43,6 +43,10 @@ public class Sampler <T> {
 		}
 		
 		return t;
+	}
+	
+	public T burnSample() {
+		return checkingDQ.removeFirst();
 	}
 
 	public void export() throws IOException {

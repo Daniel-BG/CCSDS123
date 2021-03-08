@@ -16,10 +16,6 @@ import ccsds123.util.Utils;
 public class DirectCompressor extends Compressor {
 	private static final boolean SHOW_PROGRESS = false;
 	
-
-	
-	private SampleAdaptiveEntropyCoder entropyCoder;
-	
 	public DirectCompressor() {
 		super();
 	}
@@ -38,9 +34,6 @@ public class DirectCompressor extends Compressor {
 	public void doCompress(int [][][] block, int bands, int lines, int samples, BitOutputStream bos) throws IOException {
 		this.checkParameterSanity(bands);
 		
-		//system out the compression parameters
-		System.out.println("AbsErr: " + this.getAbsErrVal(0) + " RelErr: " + this.getRelErrVal(0));
-		
 		int [][][] repBlock = new int[bands][lines][samples];
 		int [][][] diffBlock = new int[bands][lines][samples];
 		
@@ -48,9 +41,9 @@ public class DirectCompressor extends Compressor {
 		int [][] weights = this.getInitialWeights(bands);
 		
 		if (entropyCoder == null)
-			entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
+			entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
 		else
-			entropyCoder.reset(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
+			entropyCoder.reset(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
 		
 		//SampleAdaptiveEntropyCoder entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
 		
@@ -62,7 +55,7 @@ public class DirectCompressor extends Compressor {
 			for (int s = 0; s < samples; s++) {
 				for (int b = 0; b < bands; b++) {
 					int t = l*samples + s;
-					ssmpl.sample(block[b][l][s]);
+					su.ssmpl.sample(block[b][l][s]);
 					
 					if (SHOW_PROGRESS) {
 						if ((b+s*bands+l*bands*samples) % 1000000 == 0) {
@@ -91,68 +84,69 @@ public class DirectCompressor extends Compressor {
 					}*/
 					
 					////LOCAL SUM BEGIN 4.4
-					long localSum = lssmpl.sample(this.calcLocalSum(b, l, s, repBlock, samples));
+					long localSum = su.lssmpl.sample(this.calcLocalSum(b, l, s, repBlock, samples));
 					////LOCAL SUM END
 	
 					////LOCAL DIFF BEGIN 4.5
-					long northDiff = ndsmpl.sample(this.calcNorthDiff(b, l, s, repBlock, localSum));
-					long westDiff = wdsmpl.sample(this.calcWestDiff(b, l, s, repBlock, localSum));
-					long northWestDiff = nwdsmpl.sample(this.calcNorthWestDiff(b, l, s, repBlock, localSum));
+					long northDiff = su.ndsmpl.sample(this.calcNorthDiff(b, l, s, repBlock, localSum));
+					long westDiff = su.wdsmpl.sample(this.calcWestDiff(b, l, s, repBlock, localSum));
+					long northWestDiff = su.nwdsmpl.sample(this.calcNorthWestDiff(b, l, s, repBlock, localSum));
 					////LOCAL DIFF END
 					
 					//PREDICTED CENTRAL LOCAL DIFFERENCE 4.7.1
-					long predictedCentralDiff = pcdsmpl.sample(this.calcPredictedCentralDiff(b, l, s, weights, northDiff, westDiff, northWestDiff, diffBlock));
+					long predictedCentralDiff = su.pcdsmpl.sample(this.calcPredictedCentralDiff(b, l, s, weights, northDiff, westDiff, northWestDiff, diffBlock));
 					//PREDICTED CENTRAL LOCAL DIFFERENCE END
 				
 					//HR PREDICTED SAMPLE VALUE 4.7.2
-					long highResolutionPredSampleValue = hrpsvsmpl.sample(this.calcHighResolutionPredSampleValue(predictedCentralDiff, localSum));
+					long highResolutionPredSampleValue = su.hrpsvsmpl.sample(this.calcHighResolutionPredSampleValue(predictedCentralDiff, localSum));
 					//DR PREDICTED SAMPLE VALUE 4.7.3
-					long doubleResolutionPredSampleValue = drpsvsmpl.sample(this.calcDoubleResolutionSampleValue(b, l, s, highResolutionPredSampleValue, block));
+					long doubleResolutionPredSampleValue = su.drpsvsmpl.sample(this.calcDoubleResolutionSampleValue(b, l, s, highResolutionPredSampleValue, block));
 					//PREDICTED SAMMPLE VALUE 4.7.4
-					long predictedSampleValue = psvsmpl.sample(this.calcPredictedSampleValue(doubleResolutionPredSampleValue));
+					long predictedSampleValue = su.psvsmpl.sample(this.calcPredictedSampleValue(doubleResolutionPredSampleValue));
 					//PRED SAMPLE VALUE END
 						
 					//PRED RES 4.8.1 + 4.8.2.1
-					long predictionResidual = prsmpl.sample(this.calcPredictionResidual(block[b][l][s], predictedSampleValue));
-					long maxErrVal = mevsmpl.sample(this.calcMaxErrVal(b, predictedSampleValue));
-					long quantizerIndex = qismpl.sample(this.calcQuantizerIndex(predictionResidual, maxErrVal, t));
+					long predictionResidual = su.prsmpl.sample(this.calcPredictionResidual(block[b][l][s], predictedSampleValue));
+					long maxErrVal = su.mevsmpl.sample(this.calcMaxErrVal(b, predictedSampleValue));
+					long quantizerIndex = su.qismpl.sample(this.calcQuantizerIndex(predictionResidual, maxErrVal, t));
 					
 					//DR SAMPLE REPRESENTATIVE AND SAMPLE REPRESENTATIVE 4.9
-					long clippedQuantizerBinCenter = cqbcsmpl.sample(this.calcClipQuantizerBinCenter(predictedSampleValue, quantizerIndex, maxErrVal));
-					long doubleResolutionSampleRepresentative = drsrsmpl.sample(this.calcDoubleResolutionSampleRepresentative(b, clippedQuantizerBinCenter, quantizerIndex, maxErrVal, highResolutionPredSampleValue));
+					long clippedQuantizerBinCenter = su.cqbcsmpl.sample(this.calcClipQuantizerBinCenter(predictedSampleValue, quantizerIndex, maxErrVal));
+					long doubleResolutionSampleRepresentative = su.drsrsmpl.sample(this.calcDoubleResolutionSampleRepresentative(b, clippedQuantizerBinCenter, quantizerIndex, maxErrVal, highResolutionPredSampleValue));
 					
 					//DR PRED ERR 4.10.1
-					long doubleResolutionPredictionError = drpesmpl.sample(this.calcDoubleResolutionPredictionError(clippedQuantizerBinCenter, doubleResolutionPredSampleValue));
+					long doubleResolutionPredictionError = su.drpesmpl.sample(this.calcDoubleResolutionPredictionError(clippedQuantizerBinCenter, doubleResolutionPredSampleValue));
 					//WEIGHT UPDATE SCALING EXPONENT 4.10.2
-					long weightUpdateScalingExponent = wusesmpl.sample(this.calcWeightUpdateScalingExponent(t, samples));
+					long weightUpdateScalingExponent = su.wusesmpl.sample(this.calcWeightUpdateScalingExponent(t, samples));
 					//WEIGHT UPDATE 4.10.3
 					if (t > 0) {
 						int windex = 0;
 						if (this.fullPredictionMode) {
 							int weightExponentOffset = this.getIntraBandWeightExponentOffset(b);
 							//north, west, northwest
-							weights[b][0] = wsmpl.sample(this.updateWeight(weights[b][0], doubleResolutionPredictionError, northDiff, weightUpdateScalingExponent, weightExponentOffset, t));
-							weights[b][1] = wsmpl.sample(this.updateWeight(weights[b][1], doubleResolutionPredictionError, westDiff, weightUpdateScalingExponent, weightExponentOffset, t));
-							weights[b][2] = wsmpl.sample(this.updateWeight(weights[b][2], doubleResolutionPredictionError, northWestDiff, weightUpdateScalingExponent, weightExponentOffset, t));
+							weights[b][0] = su.wsmpl.sample(this.updateWeight(weights[b][0], doubleResolutionPredictionError, northDiff, weightUpdateScalingExponent, weightExponentOffset, t));
+							weights[b][1] = su.wsmpl.sample(this.updateWeight(weights[b][1], doubleResolutionPredictionError, westDiff, weightUpdateScalingExponent, weightExponentOffset, t));
+							weights[b][2] = su.wsmpl.sample(this.updateWeight(weights[b][2], doubleResolutionPredictionError, northWestDiff, weightUpdateScalingExponent, weightExponentOffset, t));
 							windex = 3;
 						}
 						for (int p = 0; p < this.predictionBands; p++) {
 							if (b - p > 0) 
-								weights[b][windex+p] = wsmpl.sample(this.updateWeight(weights[b][windex+p], doubleResolutionPredictionError, diffBlock[b-p-1][l][s], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(b, p), t));
+								weights[b][windex+p] = su.wsmpl.sample(this.updateWeight(weights[b][windex+p], doubleResolutionPredictionError, diffBlock[b-p-1][l][s], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(b, p), t));
 						}
 					}
 					
 					//MAPPED QUANTIZER INDEX 4.11
-					long theta = tsmpl.sample(this.calcTheta(t, predictedSampleValue, maxErrVal));
-					long mappedQuantizerIndex = mqismpl.sample(calcMappedQuantizerIndex(quantizerIndex, theta, doubleResolutionPredSampleValue));
+					long theta = su.tsmpl.sample(this.calcTheta(t, predictedSampleValue, maxErrVal));
+					long mappedQuantizerIndex = su.mqismpl.sample(calcMappedQuantizerIndex(quantizerIndex, theta, doubleResolutionPredSampleValue));
 					
 					//Send to coder to generate the binary output stream
 					entropyCoder.code((int) mappedQuantizerIndex, t, b, bos);
 					
-					long sampleRepresentative = srsmpl.sample(this.calcSampleRepresentative(l, s, doubleResolutionSampleRepresentative, block[b][l][s]));
+					long sampleRepresentative = su.srsmpl.sample(this.calcSampleRepresentative(l, s, doubleResolutionSampleRepresentative, block[b][l][s]));
 					repBlock[b][l][s] = (int) sampleRepresentative;
 					
-					long centralLocalDiff = cldsmpl.sample(this.calcCentralLocalDiff(l, s, sampleRepresentative, localSum));
+					
+					long centralLocalDiff = su.cldsmpl.sample(this.calcCentralLocalDiff(l, s, sampleRepresentative, localSum));
 					diffBlock[b][l][s] = (int) centralLocalDiff;
 				}
 			}
@@ -163,9 +157,9 @@ public class DirectCompressor extends Compressor {
 	public int[][][] decompress(int bands, int lines, int samples, BitInputStream bis) throws IOException {
 		//helpers
 		if (entropyCoder == null)
-			entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
+			entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
 		else
-			entropyCoder.reset(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
+			entropyCoder.reset(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
 			
 		//SampleAdaptiveEntropyCoder entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
 		int [][] weights = this.getInitialWeights(bands);
@@ -211,71 +205,78 @@ public class DirectCompressor extends Compressor {
 						continue;
 					}*/
 					
-					long mappedQuantizerIndex = mqismpl.unSample((long) entropyCoder.decode(t, b, bis));
+					long mappedQuantizerIndex = su.mqismpl.unSample((long) entropyCoder.decode(t, b, bis));
 					
 					////LOCAL SUM BEGIN 4.4
-					long localSum = lssmpl.unSample(this.calcLocalSum(b, l, s, repBlock, samples));
+					long localSum = su.lssmpl.unSample(this.calcLocalSum(b, l, s, repBlock, samples));
 					////LOCAL SUM END
 	
 					////LOCAL DIFF BEGIN 4.5
-					long northDiff = ndsmpl.unSample(this.calcNorthDiff(b, l, s, repBlock, localSum));
-					long westDiff = wdsmpl.unSample(this.calcWestDiff(b, l, s, repBlock, localSum));
-					long northWestDiff = nwdsmpl.unSample(this.calcNorthWestDiff(b, l, s, repBlock, localSum));
+					long northDiff = su.ndsmpl.unSample(this.calcNorthDiff(b, l, s, repBlock, localSum));
+					long westDiff = su.wdsmpl.unSample(this.calcWestDiff(b, l, s, repBlock, localSum));
+					long northWestDiff = su.nwdsmpl.unSample(this.calcNorthWestDiff(b, l, s, repBlock, localSum));
 					////LOCAL DIFF END
 					
 					//PREDICTED CENTRAL LOCAL DIFFERENCE 4.7.1
-					long predictedCentralDiff = pcdsmpl.unSample(this.calcPredictedCentralDiff(b, l, s, weights, northDiff, westDiff, northWestDiff, diffBlock));
+					long predictedCentralDiff = su.pcdsmpl.unSample(this.calcPredictedCentralDiff(b, l, s, weights, northDiff, westDiff, northWestDiff, diffBlock));
 					//PREDICTED CENTRAL LOCAL DIFFERENCE END
 				
 					
 					//HR PREDICTED SAMPLE VALUE 4.7.2
-					long highResolutionPredSampleValue = hrpsvsmpl.unSample(this.calcHighResolutionPredSampleValue(predictedCentralDiff, localSum));
+					long highResolutionPredSampleValue = su.hrpsvsmpl.unSample(this.calcHighResolutionPredSampleValue(predictedCentralDiff, localSum));
 					//DR PREDICTED SAMPLE VALUE 4.7.3
-					long doubleResolutionPredSampleValue = drpsvsmpl.unSample(this.calcDoubleResolutionSampleValue(b, l, s, highResolutionPredSampleValue, image)); //?
+					long doubleResolutionPredSampleValue = su.drpsvsmpl.unSample(this.calcDoubleResolutionSampleValue(b, l, s, highResolutionPredSampleValue, image)); //?
 					//PREDICTED SAMMPLE VALUE 4.7.4
-					long predictedSampleValue = psvsmpl.unSample(this.calcPredictedSampleValue(doubleResolutionPredSampleValue));
+					long predictedSampleValue = su.psvsmpl.unSample(this.calcPredictedSampleValue(doubleResolutionPredSampleValue));
 					//PRED SAMPLE VALUE END
 					
 					//UNDO COMPRESSION
-					long maxErrVal = mevsmpl.unSample(this.calcMaxErrVal(b, predictedSampleValue));
-					long theta = tsmpl.unSample(this.calcTheta(t, predictedSampleValue, maxErrVal));
+					long maxErrVal = su.mevsmpl.unSample(this.calcMaxErrVal(b, predictedSampleValue));
+					long theta = su.tsmpl.unSample(this.calcTheta(t, predictedSampleValue, maxErrVal));
 					
-					long quantizerIndex = qismpl.unSample(this.deCalcQuantizerIndex(mappedQuantizerIndex, theta, doubleResolutionPredSampleValue, t, predictedSampleValue, maxErrVal));
-					long predictionResidual = prsmpl.unSample(this.deCalcPredictionResidual(t, quantizerIndex, maxErrVal));
+					long quantizerIndex = su.qismpl.unSample(this.deCalcQuantizerIndex(mappedQuantizerIndex, theta, doubleResolutionPredSampleValue, t, predictedSampleValue, maxErrVal));
+					long predictionResidual;
+					if (maxErrVal == 0) 
+						predictionResidual = su.prsmpl.unSample(this.deCalcPredictionResidual(t, quantizerIndex, maxErrVal));
+					else { //do not unsample on lossy mode, they are different
+						su.prsmpl.burnSample();
+						predictionResidual = this.deCalcPredictionResidual(t, quantizerIndex, maxErrVal);
+					}
 					long sample = this.deCalcSample(predictionResidual, predictedSampleValue);
 					image[b][l][s] = (int) sample;
 					//UNDO COMPRESSION END
 									
 					//DR SAMPLE REPRESENTATIVE AND SAMPLE REPRESENTATIVE 4.9
-					long clippedQuantizerBinCenter = cqbcsmpl.unSample(this.calcClipQuantizerBinCenter(predictedSampleValue, quantizerIndex, maxErrVal));
-					long doubleResolutionSampleRepresentative = drsrsmpl.unSample(this.calcDoubleResolutionSampleRepresentative(b, clippedQuantizerBinCenter, quantizerIndex, maxErrVal, highResolutionPredSampleValue));
+					long clippedQuantizerBinCenter = su.cqbcsmpl.unSample(this.calcClipQuantizerBinCenter(predictedSampleValue, quantizerIndex, maxErrVal));
+					long doubleResolutionSampleRepresentative = su.drsrsmpl.unSample(this.calcDoubleResolutionSampleRepresentative(b, clippedQuantizerBinCenter, quantizerIndex, maxErrVal, highResolutionPredSampleValue));
 			
 					//DR PRED ERR 4.10.1
-					long doubleResolutionPredictionError = drpesmpl.unSample(this.calcDoubleResolutionPredictionError(clippedQuantizerBinCenter, doubleResolutionPredSampleValue));
+					long doubleResolutionPredictionError = su.drpesmpl.unSample(this.calcDoubleResolutionPredictionError(clippedQuantizerBinCenter, doubleResolutionPredSampleValue));
 					//WEIGHT UPDATE SCALING EXPONENT 4.10.2
-					long weightUpdateScalingExponent = wusesmpl.unSample(this.calcWeightUpdateScalingExponent(t, samples));
+					long weightUpdateScalingExponent = su.wusesmpl.unSample(this.calcWeightUpdateScalingExponent(t, samples));
 					//WEIGHT UPDATE 4.10.3
 					if (t > 0) {
 						int windex = 0;
 						if (this.fullPredictionMode) {
 							int weightExponentOffset = this.getIntraBandWeightExponentOffset(b);
 							//north, west, northwest
-							weights[b][0] = wsmpl.unSample(this.updateWeight(weights[b][0], doubleResolutionPredictionError, northDiff, weightUpdateScalingExponent, weightExponentOffset, t));
-							weights[b][1] = wsmpl.unSample(this.updateWeight(weights[b][1], doubleResolutionPredictionError, westDiff, weightUpdateScalingExponent, weightExponentOffset, t));
-							weights[b][2] = wsmpl.unSample(this.updateWeight(weights[b][2], doubleResolutionPredictionError, northWestDiff, weightUpdateScalingExponent, weightExponentOffset, t));
+							weights[b][0] = su.wsmpl.unSample(this.updateWeight(weights[b][0], doubleResolutionPredictionError, northDiff, weightUpdateScalingExponent, weightExponentOffset, t));
+							weights[b][1] = su.wsmpl.unSample(this.updateWeight(weights[b][1], doubleResolutionPredictionError, westDiff, weightUpdateScalingExponent, weightExponentOffset, t));
+							weights[b][2] = su.wsmpl.unSample(this.updateWeight(weights[b][2], doubleResolutionPredictionError, northWestDiff, weightUpdateScalingExponent, weightExponentOffset, t));
 							windex = 3;
 						}
 						for (int p = 0; p < this.predictionBands; p++) {
 							if (b - p > 0) 
-								weights[b][windex+p] = wsmpl.unSample(this.updateWeight(weights[b][windex+p], doubleResolutionPredictionError, diffBlock[b-p-1][l][s], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(b, p), t));
+								weights[b][windex+p] = su.wsmpl.unSample(this.updateWeight(weights[b][windex+p], doubleResolutionPredictionError, diffBlock[b-p-1][l][s], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(b, p), t));
 						}
 					}
 					
 
-					long sampleRepresentative = srsmpl.unSample(this.calcSampleRepresentative(l, s, doubleResolutionSampleRepresentative, (int) sample));
+					long sampleRepresentative = su.srsmpl.unSample(this.calcSampleRepresentative(l, s, doubleResolutionSampleRepresentative, (int) sample));
 					repBlock[b][l][s] = (int) sampleRepresentative;
 					
-					long centralLocalDiff = cldsmpl.unSample(this.calcCentralLocalDiff(l, s, sampleRepresentative, localSum));
+					
+					long centralLocalDiff = su.cldsmpl.unSample(this.calcCentralLocalDiff(l, s, sampleRepresentative, localSum));
 					diffBlock[b][l][s] = (int) centralLocalDiff;
 				}
 			}

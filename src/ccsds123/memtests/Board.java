@@ -133,9 +133,9 @@ public class Board {
 
 	private static void checkWriteRead(AdvancementType atWrite, AdvancementType atRead) {
 		int size = 4;
-		Board board = new Board(size*4, size*4);
-		ThreeDCoordinate wCoord = new ThreeDCoordinate(0, 0, 0, 1, size*4, size, atWrite);
-		ThreeDCoordinate rCoord = new ThreeDCoordinate(0, 0, 0, 1, size*4, size, atRead);
+		Board board = new Board(size, size);
+		ThreeDCoordinate wCoord = new ThreeDCoordinate(0, 0, 0, size, size, size, atWrite);
+		ThreeDCoordinate rCoord = new ThreeDCoordinate(0, 0, 0, size, size, size, atRead);
 		
 		int load = (size-1)*(size-2)/2 + EXTRA_PRELOAD;
 		

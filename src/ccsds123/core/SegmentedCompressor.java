@@ -12,6 +12,8 @@ public class SegmentedCompressor extends Compressor {
 	@Override
 	public int[][][] decompress(int bands, int lines, int samples, BitInputStream bis) throws IOException {
 		DirectCompressor c = new DirectCompressor();
+        c.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, absErr, relErr, true, true);
+        c.setSamplingUnit(getSamplingUnit());
 		return c.decompress(bands, lines, samples, bis);
 	}
 	
@@ -72,7 +74,7 @@ public class SegmentedCompressor extends Compressor {
 	public void doCompress(int[][][] block, int bands, int lines, int samples, BitOutputStream bos) throws IOException {
 		coordQueue = new LinkedList<Coordinate>();
 		sampleQueue = new LinkedList<Integer>();
-		SampleAdaptiveEntropyCoder entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
+		this.entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
 		//add all coords to coordQueue following a diagonal pattern
 		int maxT = lines*samples-1;
 		int topZ = 1;
@@ -262,7 +264,7 @@ public class SegmentedCompressor extends Compressor {
 			////PREDICTED CENTRAL LOCAL DIFFERENCE 4.7.1
 			//TAKE DIFFERENCES
 			long [] diffs = new long[this.predictionBands];
-			if (!currCoord.firstBand() && !currCoord.firstT()) {
+			if (!currCoord.firstBand()) {
 				Pair<long[], Coordinate> pp = diffQueue.remove();
 				diffs = pp.first();
 				Coordinate diffCoord = pp.second();
@@ -275,16 +277,18 @@ public class SegmentedCompressor extends Compressor {
 			int[] localWeights = weights[currCoord.band];
 			//CALCULATE PCD
 			long predictedCentralDiff = 0;
-			int windex = 0;
-			if (this.fullPredictionMode) {
-				predictedCentralDiff += localWeights[0] * northDiff;
-				predictedCentralDiff += localWeights[1] * westDiff;
-				predictedCentralDiff += localWeights[2] * northWestDiff;
-				windex = 3;
-			}
-			for (int p = 0; p < this.predictionBands; p++) {
-				if (currCoord.band - p > 0) 
-					predictedCentralDiff += localWeights[p+windex] * diffs[p];
+			if (!currCoord.firstBand() || this.fullPredictionMode) {
+				int windex = 0;
+				if (this.fullPredictionMode) {
+					predictedCentralDiff += localWeights[0] * northDiff;
+					predictedCentralDiff += localWeights[1] * westDiff;
+					predictedCentralDiff += localWeights[2] * northWestDiff;
+					windex = 3;
+				}
+				for (int p = 0; p < this.predictionBands; p++) {
+					if (currCoord.band - p > 0) 
+						predictedCentralDiff += localWeights[p+windex] * diffs[p];
+				}
 			}
 			////PREDICTED CENTRAL LOCAL DIFFERENCE END 4.7.1
 			
@@ -322,7 +326,7 @@ public class SegmentedCompressor extends Compressor {
 			//WEIGHT UPDATE 4.10.3
 			LinkedList<Integer> cwl = new LinkedList<Integer>();
 			if (currCoord.getT(samples) > 0) {
-				windex = 0;
+				int windex = 0;
 				if (this.fullPredictionMode) {
 					int weightExponentOffset = this.getIntraBandWeightExponentOffset(currCoord.band);
 					//north, west, northwest
@@ -383,7 +387,7 @@ public class SegmentedCompressor extends Compressor {
 			}
 			
 			
-			if (!currCoord.lastBand(bands) && !currCoord.firstT()) {
+			if (!currCoord.lastBand(bands)) {
 				for (int i = diffs.length-1; i > 0; i--) {
 					diffs[i] = diffs[i-1];
 				}
@@ -434,35 +438,35 @@ public class SegmentedCompressor extends Compressor {
 		for (int i = 0; i < lines; i++) {
 			for (int j = 0; j < samples; j++) {
 				for (int k = 0; k < bands; k++) {
-					entropyCoder.code((int) mqiarr[k][i][j], i*samples+j, k, bos);
+					this.entropyCoder.code((int) mqiarr[k][i][j], i*samples+j, k, bos);
 					
 					
-					cldsmpl.sample(cldarr[k][i][j]);
-					cqbcsmpl.sample(cqbcarr[k][i][j]);
-					drpesmpl.sample(dprearr[k][i][j]);
-					drsrsmpl.sample(drsrarr[k][i][j]);
-					hrpsvsmpl.sample(hrpsvarr[k][i][j]);
-					lssmpl.sample(lsarr[k][i][j]);
-					ndsmpl.sample(ndarr[k][i][j]);
-					nwdsmpl.sample(nwdarr[k][i][j]);
-					pcdsmpl.sample(pcdarr[k][i][j]);
-					wdsmpl.sample(wdarr[k][i][j]);
-					wusesmpl.sample(wusearr[k][i][j]);
+					su.cldsmpl.sample(cldarr[k][i][j]);
+					su.cqbcsmpl.sample(cqbcarr[k][i][j]);
+					su.drpesmpl.sample(dprearr[k][i][j]);
+					su.drsrsmpl.sample(drsrarr[k][i][j]);
+					su.hrpsvsmpl.sample(hrpsvarr[k][i][j]);
+					su.lssmpl.sample(lsarr[k][i][j]);
+					su.ndsmpl.sample(ndarr[k][i][j]);
+					su.nwdsmpl.sample(nwdarr[k][i][j]);
+					su.pcdsmpl.sample(pcdarr[k][i][j]);
+					su.wdsmpl.sample(wdarr[k][i][j]);
+					su.wusesmpl.sample(wusearr[k][i][j]);
 					
 					
-					drpsvsmpl.sample(drpsvarr[k][i][j]);
-					mevsmpl.sample(mevarr[k][i][j]);
-					mqismpl.sample(mqiarr[k][i][j]);
-					prsmpl.sample(prarr[k][i][j]);
-					psvsmpl.sample(psvarr[k][i][j]);
-					qismpl.sample(qiarr[k][i][j]);
-					ssmpl.sample(sarr[k][i][j]);
-					srsmpl.sample(srarr[k][i][j]);
-					tsmpl.sample(tarr[k][i][j]);
+					su.drpsvsmpl.sample(drpsvarr[k][i][j]);
+					su.mevsmpl.sample(mevarr[k][i][j]);
+					su.mqismpl.sample(mqiarr[k][i][j]);
+					su.prsmpl.sample(prarr[k][i][j]);
+					su.psvsmpl.sample(psvarr[k][i][j]);
+					su.qismpl.sample(qiarr[k][i][j]);
+					su.ssmpl.sample(sarr[k][i][j]);
+					su.srsmpl.sample(srarr[k][i][j]);
+					su.tsmpl.sample(tarr[k][i][j]);
 					@SuppressWarnings("unchecked")
 					Queue<Integer> cwl = (Queue<Integer>) warr[k][i][j];
 					while (!cwl.isEmpty())
-						wsmpl.sample(cwl.remove());					
+						su.wsmpl.sample(cwl.remove());					
 
 				}
 			}
