@@ -40,7 +40,7 @@ public class Main {
 	        int[] relErr = new int[1];
 	        absErr[0] = iArgs.max_abs_err;
 	        relErr[0] = iArgs.max_rel_err;
-	        c.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, absErr, relErr, true, true);
+	        c.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, absErr, relErr, iArgs.use_max_abs_err, iArgs.use_max_rel_err);
 	        
 	        
 	        //go through options

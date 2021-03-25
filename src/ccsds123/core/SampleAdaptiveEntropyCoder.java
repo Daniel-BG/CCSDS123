@@ -7,7 +7,6 @@ import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
 import com.jypec.util.bits.BitStreamConstants;
 
-import ccsds123.util.Sampler;
 import ccsds123.util.Utils;
 
 /**
@@ -16,7 +15,7 @@ import ccsds123.util.Utils;
  * @author Daniel
  *
  */
-public class SampleAdaptiveEntropyCoder {
+public class SampleAdaptiveEntropyCoder extends EntropyCoder {
 	
 	private int uMax;
 	private int depth;
@@ -77,36 +76,7 @@ public class SampleAdaptiveEntropyCoder {
 		return ((3*(1 << (modifiedConstant + 6)) - 49)*this.counterResetValue) >> 7;
 	}
 	
-	private void lengthLimitedGolombPowerOfTwoCode(int uInt, int uIntCodeIndex,  BitOutputStream bos) throws IOException {
-		int threshold = uInt >> uIntCodeIndex;
-		if (threshold < this.uMax) {
-			//threshold zeroes + 1 + uIntCodeIndex lsbs of uInt
-			bos.writeBits(0, threshold, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
-			bos.writeBit(Bit.BIT_ONE);
-			bos.writeBits(uInt, uIntCodeIndex, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
-		} else {
-			//uMax zeroes + D-bit binary repr of uInt
-			bos.writeBits(0, this.uMax, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
-			bos.writeBits(uInt, this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
-		}
-	}
-	
-	private int lengthLimitedGolombPowerOfTwoDecode(int uIntCodeIndex, BitInputStream bis) throws IOException {		
-		int threshold = 0;
-		do {
-			Bit bit = bis.readBit();
-			if (bit == Bit.BIT_ONE)
-				break;
-			threshold++;
-		} while (threshold < this.uMax);
-		
-		if (threshold == this.uMax) {
-			int res = bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST); 
-			return res;
-		} else {
-			return (threshold << uIntCodeIndex) | bis.readBits(uIntCodeIndex, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
-		}
-	}
+
 	
 	
 	private int getUintCodeIndex(int b, int t, int cValue) {
@@ -130,6 +100,7 @@ public class SampleAdaptiveEntropyCoder {
 		}
 	}
 	
+	@Override
 	public void code(int mappedQuantizerIndex, int t, int b, BitOutputStream bos) throws IOException {
 		if (t == 0) {
 			bos.writeBits(this.su.uismpl.sample(mappedQuantizerIndex), this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
@@ -138,14 +109,14 @@ public class SampleAdaptiveEntropyCoder {
 			int uInt = this.su.uismpl.sample(mappedQuantizerIndex);
 			int uIntCodeIndex = this.su.uicismpl.sample(this.getUintCodeIndex(b, t, cValue));
 			//code
-			this.lengthLimitedGolombPowerOfTwoCode(uInt, uIntCodeIndex, bos);
+			this.lengthLimitedGolombPowerOfTwoCode(uInt, uIntCodeIndex, bos, this.uMax, this.depth);
 			//update accumulator
 			this.updateAccumulator(b, t, mappedQuantizerIndex, cValue);
 			this.su.accsmpl.sample(this.accumulator[b]);
 		}
 	}
 	
-	
+	@Override
 	public int decode(int t, int b, BitInputStream bis) throws IOException {
 		if (t == 0) {
 			int res = this.su.uismpl.unSample(bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST));
@@ -153,7 +124,7 @@ public class SampleAdaptiveEntropyCoder {
 		} else {
 			int cValue = this.getCounterValue(t);
 			int uIntCodeIndex = this.su.uicismpl.unSample(this.getUintCodeIndex(b, t, cValue));
-			int uInt = this.su.uismpl.unSample(this.lengthLimitedGolombPowerOfTwoDecode(uIntCodeIndex, bis));
+			int uInt = this.su.uismpl.unSample(this.lengthLimitedGolombPowerOfTwoDecode(uIntCodeIndex, bis, this.uMax, this.depth));
 			//update accumulator
 			this.updateAccumulator(b, t, uInt, cValue);
 			this.su.accsmpl.unSample(this.accumulator[b]);

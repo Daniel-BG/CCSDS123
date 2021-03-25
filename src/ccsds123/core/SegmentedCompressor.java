@@ -12,7 +12,7 @@ public class SegmentedCompressor extends Compressor {
 	@Override
 	public int[][][] decompress(int bands, int lines, int samples, BitInputStream bis) throws IOException {
 		DirectCompressor c = new DirectCompressor();
-        c.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, absErr, relErr, true, true);
+        c.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, this.absErr, this.relErr, this.useAbsoluteErrLimit, this.useRelativeErrLimit);
         c.setSamplingUnit(getSamplingUnit());
 		return c.decompress(bands, lines, samples, bis);
 	}
@@ -43,6 +43,10 @@ public class SegmentedCompressor extends Compressor {
 			return this.firstLine() && this.firstSample();
 		}
 		
+		public boolean lastT(int samples, int lines) {
+			return this.lastLine(lines) && this.lastSample(samples);
+		}
+		
 		public boolean lastLine(int lines) {
 			return this.line == lines - 1;
 		}
@@ -63,6 +67,8 @@ public class SegmentedCompressor extends Compressor {
 		public int getT(int samples) {
 			return this.line * samples + this.sample;
 		}
+
+
 	}
 	
 	
@@ -101,7 +107,7 @@ public class SegmentedCompressor extends Compressor {
 		}
 		
 		//initializations
-		int [][] weights = this.getInitialWeights(bands);
+		
 		
 		//queues
 		Queue<Pair<Long, Coordinate>> 	westQueue 		= new LinkedList<Pair<Long, Coordinate>>();
@@ -109,6 +115,8 @@ public class SegmentedCompressor extends Compressor {
 		Queue<Pair<Long, Coordinate>> 	northEastQueue 	= new LinkedList<Pair<Long, Coordinate>>();
 		Queue<Pair<Long, Coordinate>> 	northWestQueue 	= new LinkedList<Pair<Long, Coordinate>>();
 		Queue<Pair<long[], Coordinate>>	diffQueue 		= new LinkedList<Pair<long[], Coordinate>>();
+		Queue<Pair<int[], Coordinate>>	initialWeightQueue 	= new LinkedList<Pair<int[], Coordinate>>();
+		Queue<Pair<int[], Coordinate>>	weightQueue 	= new LinkedList<Pair<int[], Coordinate>>();
 		Queue<Integer> firstPixelQueueDRPSV = new LinkedList<Integer>();
 		
 		int[][][] sarr = new int[bands][lines][samples];
@@ -132,6 +140,12 @@ public class SegmentedCompressor extends Compressor {
 		long[][][] srarr = new long[bands][lines][samples];
 		long[][][] tarr = new long[bands][lines][samples];
 		long[][][] mqiarr = new long[bands][lines][samples];
+		
+		
+		int [][] initialWeights = this.getInitialWeights(bands);
+		for (int i = 0; i < initialWeights.length; i++) {
+			initialWeightQueue.add(new Pair<int[], Coordinate>(initialWeights[i], new Coordinate(i, 0, 0)));
+		}
 
 
 		//keep taking things till there are no more
@@ -274,22 +288,35 @@ public class SegmentedCompressor extends Compressor {
 				}
 			}
 			//TAKE WEIGTHS
-			int[] localWeights = weights[currCoord.band];
-			//CALCULATE PCD
-			long predictedCentralDiff = 0;
-			if (!currCoord.firstBand() || this.fullPredictionMode) {
-				int windex = 0;
-				if (this.fullPredictionMode) {
-					predictedCentralDiff += localWeights[0] * northDiff;
-					predictedCentralDiff += localWeights[1] * westDiff;
-					predictedCentralDiff += localWeights[2] * northWestDiff;
-					windex = 3;
-				}
-				for (int p = 0; p < this.predictionBands; p++) {
-					if (currCoord.band - p > 0) 
-						predictedCentralDiff += localWeights[p+windex] * diffs[p];
-				}
+			int[] localWeights;
+			Pair<int[], Coordinate> wcp;
+			if (currCoord.firstT()) {
+				wcp = initialWeightQueue.remove();
+			} else {
+				wcp = weightQueue.remove();
 			}
+			//check weight coordinate
+			Coordinate weightCoord = wcp.second();
+			if (weightCoord.band != currCoord.band) {
+				throw new IllegalStateException("WRONG");
+			}
+			localWeights = wcp.first();
+			
+			//CALCULATE PCD
+			int windex = 0;
+			long predictedCentralDiff = 0;
+			//if (!currCoord.firstBand() || this.fullPredictionMode) {
+			if (this.fullPredictionMode) {
+				predictedCentralDiff += localWeights[0] * northDiff;
+				predictedCentralDiff += localWeights[1] * westDiff;
+				predictedCentralDiff += localWeights[2] * northWestDiff;
+				windex = 3;
+			}
+			for (int p = 0; p < this.predictionBands; p++) {
+				//if (currCoord.band - p > 0) 
+				predictedCentralDiff += localWeights[p+windex] * diffs[p];
+			}
+			//}
 			////PREDICTED CENTRAL LOCAL DIFFERENCE END 4.7.1
 			
 
@@ -310,7 +337,7 @@ public class SegmentedCompressor extends Compressor {
 			
 			//PRED RES 4.8.1 + 4.8.2.1
 			long predictionResidual = this.calcPredictionResidual(currSample, predictedSampleValue);
-			long maxErrVal = this.calcMaxErrVal(currCoord.band, predictedSampleValue);
+			long maxErrVal = this.calcMaxErrVal(currCoord.band, predictedSampleValue, currCoord.getT(samples));
 			long quantizerIndex = this.calcQuantizerIndex(predictionResidual, maxErrVal, currCoord.getT(samples));
 			
 			//DR SAMPLE REPRESENTATIVE AND SAMPLE REPRESENTATIVE 4.9
@@ -326,7 +353,7 @@ public class SegmentedCompressor extends Compressor {
 			//WEIGHT UPDATE 4.10.3
 			LinkedList<Integer> cwl = new LinkedList<Integer>();
 			if (currCoord.getT(samples) > 0) {
-				int windex = 0;
+				windex = 0;
 				if (this.fullPredictionMode) {
 					int weightExponentOffset = this.getIntraBandWeightExponentOffset(currCoord.band);
 					//north, west, northwest
@@ -339,11 +366,16 @@ public class SegmentedCompressor extends Compressor {
 					windex = 3;
 				}
 				for (int p = 0; p < this.predictionBands; p++) {
+					localWeights[windex+p] = this.updateWeight(localWeights[windex+p], doubleResolutionPredictionError, diffs[p], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(currCoord.band, p), currCoord.getT(samples));
 					if (currCoord.band - p > 0) { 
-						localWeights[windex+p] = this.updateWeight(localWeights[windex+p], doubleResolutionPredictionError, diffs[p], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(currCoord.band, p), currCoord.getT(samples));
+						//add only the ones we need to be checking, the others are cancelled by differences being zero
 						cwl.add(localWeights[windex+p]);
 					}
 				}
+			}
+			//save weights if needed
+			if (!currCoord.lastT(samples, lines)) {
+				weightQueue.add(wcp);
 			}
 			
 			//MAPPED QUANTIZER INDEX 4.11

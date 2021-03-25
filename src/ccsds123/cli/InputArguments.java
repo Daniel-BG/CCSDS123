@@ -50,6 +50,8 @@ public class InputArguments {
 	//custom algorithm stuff
 	public int max_abs_err = Constants.DEFAULT_ABS_ERR_VALUE;
 	public int max_rel_err = Constants.DEFAULT_REL_ERR_VALUE;
+	public boolean use_max_abs_err = false;
+	public boolean use_max_rel_err = false;
 	
 	
 	
@@ -88,10 +90,19 @@ public class InputArguments {
 		args.signed   = line.hasOption(CCSDSCLI.OPTION_SIGNED);
 		
 		//parse algorithm values
-		if (line.hasOption(CCSDSCLI.OPTION_MAX_ABS_ERR))
+		if (line.hasOption(CCSDSCLI.OPTION_MAX_ABS_ERR)) {
 			args.max_abs_err = Integer.parseInt(line.getOptionValue(CCSDSCLI.OPTION_MAX_ABS_ERR));
-		if (line.hasOption(CCSDSCLI.OPTION_MAX_REL_ERR))
+			args.use_max_abs_err = true;
+		} else {
+			args.use_max_abs_err = false;
+		}
+		
+		if (line.hasOption(CCSDSCLI.OPTION_MAX_REL_ERR)) {
 			args.max_rel_err = Integer.parseInt(line.getOptionValue(CCSDSCLI.OPTION_MAX_REL_ERR));
+			args.use_max_rel_err = true;
+		} else {
+			args.use_max_rel_err = false;
+		}
 		
 		return args;
 	}

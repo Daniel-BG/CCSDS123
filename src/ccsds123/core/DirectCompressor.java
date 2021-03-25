@@ -107,7 +107,7 @@ public class DirectCompressor extends Compressor {
 						
 					//PRED RES 4.8.1 + 4.8.2.1
 					long predictionResidual = su.prsmpl.sample(this.calcPredictionResidual(block[b][l][s], predictedSampleValue));
-					long maxErrVal = su.mevsmpl.sample(this.calcMaxErrVal(b, predictedSampleValue));
+					long maxErrVal = su.mevsmpl.sample(this.calcMaxErrVal(b, predictedSampleValue, t));
 					long quantizerIndex = su.qismpl.sample(this.calcQuantizerIndex(predictionResidual, maxErrVal, t));
 					
 					//DR SAMPLE REPRESENTATIVE AND SAMPLE REPRESENTATIVE 4.9
@@ -231,7 +231,7 @@ public class DirectCompressor extends Compressor {
 					//PRED SAMPLE VALUE END
 					
 					//UNDO COMPRESSION
-					long maxErrVal = su.mevsmpl.unSample(this.calcMaxErrVal(b, predictedSampleValue));
+					long maxErrVal = su.mevsmpl.unSample(this.calcMaxErrVal(b, predictedSampleValue, t));
 					long theta = su.tsmpl.unSample(this.calcTheta(t, predictedSampleValue, maxErrVal));
 					
 					long quantizerIndex = su.qismpl.unSample(this.deCalcQuantizerIndex(mappedQuantizerIndex, theta, doubleResolutionPredSampleValue, t, predictedSampleValue, maxErrVal));

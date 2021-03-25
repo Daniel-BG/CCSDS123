@@ -179,8 +179,8 @@ public abstract class Compressor {
 		Utils.checkVector(relErr, Constants.MIN_REL_ERR_VALUE, Constants.get_MAX_REL_ERR_VALUE(this.relativeErrorLimitBitDepth));
 		this.absErr = absErr;
 		this.relErr = relErr;
-		this.useAbsoluteErrLimit = useAbsoluteErrLimit | absErr != null;
-		this.useRelativeErrLimit = useRelativeErrLimit | relErr != null;
+		this.useAbsoluteErrLimit = useAbsoluteErrLimit;
+		this.useRelativeErrLimit = useRelativeErrLimit;
 	}
 	
 	public void checkParameterSanity(int bands) {
@@ -297,8 +297,10 @@ public abstract class Compressor {
 		 return sample - predictedSampleValue;
 	}
 	
-	protected long calcMaxErrVal(int b, long predSampleValue) { //EQ 42, 43, 44, 45
+	protected long calcMaxErrVal(int b, long predSampleValue, int t) { //EQ 42, 43, 44, 45
 		long maxErrVal = 0;
+		if (t == 0)
+			return 0;
 		if (this.useAbsoluteErrLimit && this.useRelativeErrLimit) {
 			maxErrVal = Math.min(this.getAbsErrVal(b), (this.getRelErrVal(b)*Math.abs(predSampleValue)) >> this.depth); //EQ 45
 		} else if (this.useRelativeErrLimit) {

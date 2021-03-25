@@ -38,7 +38,7 @@ public class Test {
 	
 	static String[] argsCompare =
 		{
-			"--max_abs_err", "0",
+			//"--max_abs_err", "0",
 			"--max_rel_err", "0",
 			"-i", input,
 			"--input_header", inputHeader,
@@ -52,9 +52,9 @@ public class Test {
 
 	public static void main(String[] args) {
 		
-		for (int i = 6; i <= 6; i++) {
+		for (int i = 6; i <= 12; i++) {
 			argsCompare[1] = Integer.toString(1 << i);
-			argsCompare[3] = Integer.toString(1 << i);
+			//argsCompare[3] = Integer.toString(1 << i);
 			Main.main(argsCompare);
 			System.out.println();
 		}
