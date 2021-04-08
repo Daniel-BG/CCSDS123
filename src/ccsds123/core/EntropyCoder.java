@@ -12,6 +12,16 @@ public abstract class EntropyCoder {
 	public abstract void code(int mappedQuantizerIndex, int t, int b, BitOutputStream bos) throws IOException;
 	public abstract int decode(int t, int b, BitInputStream bis) throws IOException;
 	
+	protected int getCounterValue(int t, int gammaStar, int gammaZero) {
+		int cThresh = (1 << gammaStar) - (1 << gammaZero);
+		int cOflow  = (t - ((1 << gammaStar) - (1 << gammaZero) + 1)) % (1 << (gammaStar - 1));
+		int cValue = t <= cThresh ? (1 << gammaZero) - 1 + t : ((1 << (gammaStar - 1)) + cOflow);
+				
+		//sanity check
+		if (cValue >= 1 << gammaStar)
+			throw new IllegalStateException("This value is too high, something is wrong in the calculation");
+		return cValue;
+	}
 	
 	protected void lengthLimitedGolombPowerOfTwoCode(int uInt, int uIntCodeIndex,  BitOutputStream bos, int uMax, int depth) throws IOException {
 		int threshold = uInt >> uIntCodeIndex;

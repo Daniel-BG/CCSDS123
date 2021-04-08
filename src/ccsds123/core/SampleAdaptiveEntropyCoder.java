@@ -51,21 +51,6 @@ public class SampleAdaptiveEntropyCoder extends EntropyCoder {
 		this.su = su;
 	}
 	
-	
-	
-	
-	private int getCounterValue(int t) {
-		int cThresh = (1 << this.gammaStar) - (1 << this.gammaZero);
-		int cOflow  = (t - ((1 << this.gammaStar) - (1 << this.gammaZero) + 1)) % (1 << (this.gammaStar - 1));
-		int cValue = t <= cThresh ? (1 << this.gammaZero) - 1 + t : ((1 << (this.gammaStar - 1)) + cOflow);
-				
-		//sanity check
-		if (cValue >= 1 << this.gammaStar)
-			throw new IllegalStateException("This value is too high, something is wrong in the calculation");
-		return cValue;
-	}
-
-	
 	private int calcInitialAccValue(int constant) {
 		int modifiedConstant;
 		if (constant <= 30 - this.depth) {
@@ -105,7 +90,7 @@ public class SampleAdaptiveEntropyCoder extends EntropyCoder {
 		if (t == 0) {
 			bos.writeBits(this.su.uismpl.sample(mappedQuantizerIndex), this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 		} else {
-			int cValue = this.getCounterValue(t);
+			int cValue = this.getCounterValue(t, this.gammaStar, this.gammaZero);
 			int uInt = this.su.uismpl.sample(mappedQuantizerIndex);
 			int uIntCodeIndex = this.su.uicismpl.sample(this.getUintCodeIndex(b, t, cValue));
 			//code
@@ -122,7 +107,7 @@ public class SampleAdaptiveEntropyCoder extends EntropyCoder {
 			int res = this.su.uismpl.unSample(bis.readBits(this.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST));
 			return res;
 		} else {
-			int cValue = this.getCounterValue(t);
+			int cValue = this.getCounterValue(t, this.gammaStar, this.gammaZero);;
 			int uIntCodeIndex = this.su.uicismpl.unSample(this.getUintCodeIndex(b, t, cValue));
 			int uInt = this.su.uismpl.unSample(this.lengthLimitedGolombPowerOfTwoDecode(uIntCodeIndex, bis, this.uMax, this.depth));
 			//update accumulator
