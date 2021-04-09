@@ -52,6 +52,7 @@ public class InputArguments {
 	public int max_rel_err = Constants.DEFAULT_REL_ERR_VALUE;
 	public boolean use_max_abs_err = false;
 	public boolean use_max_rel_err = false;
+	public boolean use_hybrid = false;
 	
 	
 	
@@ -62,6 +63,8 @@ public class InputArguments {
 	 */
 	public static InputArguments parseFrom(CommandLine line) throws ParseException {
 		InputArguments args = new InputArguments();
+		
+		args.use_hybrid = line.hasOption(CCSDSCLI.OPTION_HYBRID);
 
 		args.showCompressionStats = line.hasOption(CCSDSCLI.OPTION_SHOW_STATS);
 		args.help = line.hasOption(CCSDSCLI.OPTION_HELP);

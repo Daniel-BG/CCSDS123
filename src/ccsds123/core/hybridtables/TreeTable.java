@@ -2,50 +2,73 @@ package ccsds123.core.hybridtables;
 
 import java.util.Iterator;
 
-public class TreeTable<TERMINAL_T> implements Iterable<TableEntry<TERMINAL_T, TreeTable<TERMINAL_T>>>{
-	private TableEntry<TERMINAL_T, TreeTable<TERMINAL_T>>[] table;
+public class TreeTable<TERMINAL_T> implements Iterable<TreeTable<TERMINAL_T>>{
+	private TreeTable<TERMINAL_T>[] children;
 	private TERMINAL_T value;
 	private TreeTable<TERMINAL_T> parent;
+	private int parentIndex;
 	private int size;
 	
 	@SuppressWarnings("unchecked")
-	public TreeTable(TreeTable<TERMINAL_T> parent, int size) {
+	private void init(TreeTable<TERMINAL_T> parent, int size, int parentIndex) {
 		this.parent = parent;
-		this.table = (TableEntry<TERMINAL_T, TreeTable<TERMINAL_T>>[]) new TableEntry<?, ?>[size];
+		this.parentIndex = parentIndex;
+		this.children = (TreeTable<TERMINAL_T>[]) new TreeTable<?>[size];
 		this.size = size;
 	}
 	
-	public void setCodeword(TERMINAL_T c) {
+	//create nonfinal node
+	public TreeTable(TreeTable<TERMINAL_T> parent, int size, int parentIndex) {
+		this.init(parent, size, parentIndex);
+	}
+	
+	//create final node
+	public TreeTable(TreeTable<TERMINAL_T> parent, TERMINAL_T value, int parentIndex) {
+		this.init(parent, 0, parentIndex);
+		this.value = value;
+	}
+	
+	public void setValue(TERMINAL_T c) {
 		this.value = c;
 	}
 
 	public void addTerminalNode(int node, TERMINAL_T c) {
-		if (!(this.table[node] == null)) 
-			throw new IllegalStateException();
-		this.table[node] = new TableEntry<TERMINAL_T, TreeTable<TERMINAL_T>>(c, null);
+		if (!(this.children[node] == null)) 
+			throw new IllegalStateException("Adding to: " + node );
+		this.children[node] = new TreeTable<TERMINAL_T>(this, c, node);
+	}
+	
+	public boolean isTree() {
+		return this.size != 0;
+	}
+	
+	public boolean isTerminal() {
+		return this.size == 0;
 	}
 
 	public TreeTable<TERMINAL_T> getNextOrAddDefault(int node) {
-		TableEntry<TERMINAL_T, TreeTable<TERMINAL_T>> next = this.table[node];
+		if (!this.isTree()) 
+			throw new IllegalStateException();
+		TreeTable<TERMINAL_T> next = this.children[node];
 		if (next == null)
-			next = new TableEntry<TERMINAL_T, TreeTable<TERMINAL_T>>(null, new TreeTable<TERMINAL_T>(this, this.size));
+			next = new TreeTable<TERMINAL_T>(this, this.size, node);
 		else
 			if (!(next.isTree()))
-				throw new IllegalStateException();
+				throw new IllegalStateException("Size was: " + next.size);
 		
-		this.table[node] = next;
-		return next.getTree();
+		this.children[node] = next;
+		return next;
 	}
 	
-	public TableEntry<TERMINAL_T, TreeTable<TERMINAL_T>> getEntry(int node) {
-		return this.table[node];
+	public TreeTable<TERMINAL_T> getChild(int node) {
+		return this.children[node];
 	}
 	
 	public String toString() {
-		String ret = "[" + this.value + "] ";
+		String ret = "[" + (this.value == null ? "null": "....") + "] ";
 		for (int i = 0; i < this.size; i++) {
-			if (this.table[i] != null)
-				ret += i + " : { " + this.table[i] + " } "; 
+			if (this.children[i] != null)
+				ret += i + " : { " + this.children[i] + " } "; 
 		}
 		
 		
@@ -59,10 +82,14 @@ public class TreeTable<TERMINAL_T> implements Iterable<TableEntry<TERMINAL_T, Tr
 	public TreeTable<TERMINAL_T> getParent() {
 		return this.parent;
 	}
+	
+	public int getParentIndex() {
+		return this.parentIndex;
+	}
 
 	@Override
-	public Iterator<TableEntry<TERMINAL_T, TreeTable<TERMINAL_T>>> iterator() {
-		return new Iterator<TableEntry<TERMINAL_T, TreeTable<TERMINAL_T>>>() {
+	public Iterator<TreeTable<TERMINAL_T>> iterator() {
+		return new Iterator<TreeTable<TERMINAL_T>>() {
 			
 			int index = 0; 
 			{
@@ -70,9 +97,10 @@ public class TreeTable<TERMINAL_T> implements Iterable<TableEntry<TERMINAL_T, Tr
 			}
 			
 			private void advaceIndex(boolean isFirst) {
-				for (int i = isFirst ? 0 : index + 1; i < size; i++)
-					if (table[i] != null)
+				for (index = isFirst ? 0 : index + 1; index < size; index++)
+					if (children[index] != null)
 						break;
+				
 			}
 
 			@Override
@@ -81,11 +109,20 @@ public class TreeTable<TERMINAL_T> implements Iterable<TableEntry<TERMINAL_T, Tr
 			}
 
 			@Override
-			public TableEntry<TERMINAL_T, TreeTable<TERMINAL_T>> next() {
+			public TreeTable<TERMINAL_T> next() {
 				int pIndex = index;
 				this.advaceIndex(false);
-				return table[pIndex];
+				return children[pIndex];
 			}
 		};
 	}
+
+	public boolean hasValue() {
+		return this.value != null;
+	}
+
+	public boolean isRoot() {
+		return this.parent == null;
+	}
+
 }

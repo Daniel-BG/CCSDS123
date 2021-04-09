@@ -43,16 +43,17 @@ public abstract class Compressor {
 	protected int [] accumulatorInitializationConstant;
 	
 	
-	protected SampleAdaptiveEntropyCoder entropyCoder;
+	protected EntropyCoder entropyCoder;
 	
 	
 	/** DEBUG STUFF */
 	private static final String sampleBaseDir = "C:/Users/Daniel/Basurero/out/";
 	private static final String sampleExt = ".smp";	
 	
-	public Compressor() {
+	public Compressor(EntropyCoder ec) {
 		this.setDefaults();
 		this.setSamplingUnit(new SamplingUnit());
+		this.entropyCoder = ec;
 		
 		Sampler.setSamplePath(sampleBaseDir);
 		Sampler.setSampleExt(sampleExt);

@@ -16,7 +16,9 @@ import ccsds123.cli.InputArguments;
 import ccsds123.core.SegmentedCompressor;
 import ccsds123.core.Compressor;
 import ccsds123.core.Constants;
-import ccsds123.core.DirectCompressor;
+import ccsds123.core.EntropyCoder;
+import ccsds123.core.HybridEntropyCoder;
+import ccsds123.core.SampleAdaptiveEntropyCoder;
 
 
 public class Main {
@@ -32,7 +34,13 @@ public class Main {
 	        //parse the command line arguments
 	        CommandLine line = parser.parse( CCSDSCLI.getOptions(), args );
 	        InputArguments iArgs = InputArguments.parseFrom(line);
-	        Compressor c = new SegmentedCompressor();
+	        EntropyCoder ec;
+	        if (iArgs.use_hybrid)
+	        	ec = new HybridEntropyCoder();
+	        else
+	        	ec = new SampleAdaptiveEntropyCoder();
+	        
+	        Compressor c = new SegmentedCompressor(ec);
 	        //Compressor c = new DirectCompressor();
 	        
 	        //set compressor parameters

@@ -29,6 +29,7 @@ public class CCSDSCLI {
 	/** Custom algorithm options */
 	public static final String OPTION_MAX_ABS_ERR = "max_abs_err";
 	public static final String OPTION_MAX_REL_ERR = "max_rel_err";
+	public static final String OPTION_HYBRID = "hybrid";
 	
 	
 	/* Options for jypec */
@@ -46,6 +47,7 @@ public class CCSDSCLI {
 		
 		Option maxabserr		= new Option(null, OPTION_MAX_ABS_ERR, true, "maximum absolute error allowed");
 		Option maxrelerr		= new Option(null, OPTION_MAX_REL_ERR, true, "maximum relative error allowed");
+		Option hybridCoder		= new Option(null, OPTION_HYBRID, false, "use hybrid coding");
 		
 		/* input output files */
 		Option input = Option
@@ -106,6 +108,7 @@ public class CCSDSCLI {
 		ccsds123Options.addOption(signed);
 		ccsds123Options.addOption(maxabserr);
 		ccsds123Options.addOption(maxrelerr);
+		ccsds123Options.addOption(hybridCoder);
 	}
 	
 	

@@ -16,8 +16,8 @@ import ccsds123.util.Utils;
 public class DirectCompressor extends Compressor {
 	private static final boolean SHOW_PROGRESS = false;
 	
-	public DirectCompressor() {
-		super();
+	public DirectCompressor(EntropyCoder ec) {
+		super(ec);
 	}
 	
 
@@ -40,10 +40,7 @@ public class DirectCompressor extends Compressor {
 		////WEIGHT INITIALIZATION 4.6.3.2
 		int [][] weights = this.getInitialWeights(bands);
 		
-		if (entropyCoder == null)
-			entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
-		else
-			entropyCoder.reset(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
+		entropyCoder.reset(this.uMax, this.depth, bands, lines*samples, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
 		
 		//SampleAdaptiveEntropyCoder entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
 		
@@ -156,10 +153,7 @@ public class DirectCompressor extends Compressor {
 	
 	public int[][][] decompress(int bands, int lines, int samples, BitInputStream bis) throws IOException {
 		//helpers
-		if (entropyCoder == null)
-			entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
-		else
-			entropyCoder.reset(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
+		entropyCoder.reset(this.uMax, this.depth, bands, lines*samples, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
 			
 		//SampleAdaptiveEntropyCoder entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
 		int [][] weights = this.getInitialWeights(bands);

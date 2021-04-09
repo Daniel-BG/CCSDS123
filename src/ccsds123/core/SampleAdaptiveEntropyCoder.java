@@ -2,7 +2,6 @@ package ccsds123.core;
 
 import java.io.IOException;
 
-import com.jypec.util.bits.Bit;
 import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
 import com.jypec.util.bits.BitStreamConstants;
@@ -11,7 +10,6 @@ import ccsds123.util.Utils;
 
 /**
  * implements 5.4.3.2 of the standard
- * 5.4.3.3 is the HYBRID version with other, more complex options
  * @author Daniel
  *
  */
@@ -27,11 +25,8 @@ public class SampleAdaptiveEntropyCoder extends EntropyCoder {
 	
 	private SamplingUnit su;
 	
-	public SampleAdaptiveEntropyCoder(int uMax, int depth, int bands, int gammaZero, int gammaStar, int [] accumulatorInitializationConstant, SamplingUnit su) {
-		this.reset(uMax, depth, bands, gammaZero, gammaStar, accumulatorInitializationConstant, su);
-	}
-	
-	public void reset(int uMax, int depth, int bands, int gammaZero, int gammaStar, int [] accumulatorInitializationConstant, SamplingUnit su) {
+	@Override
+	public void reset(int uMax, int depth, int bands, int samplesPerBand, int gammaZero, int gammaStar, int [] accumulatorInitializationConstant, SamplingUnit su) {
 		if (uMax < 8 || uMax > 32)
 			throw new IllegalArgumentException("Umax out of bounds!");
 		this.uMax = uMax;

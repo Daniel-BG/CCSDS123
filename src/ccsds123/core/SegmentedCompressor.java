@@ -9,9 +9,15 @@ import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
 
 public class SegmentedCompressor extends Compressor {
+	
+	public SegmentedCompressor(EntropyCoder ec) {
+		super(ec);
+	}
+
+
 	@Override
 	public int[][][] decompress(int bands, int lines, int samples, BitInputStream bis) throws IOException {
-		DirectCompressor c = new DirectCompressor();
+		DirectCompressor c = new DirectCompressor(this.entropyCoder);
         c.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, this.absErr, this.relErr, this.useAbsoluteErrLimit, this.useRelativeErrLimit);
         c.setSamplingUnit(getSamplingUnit());
 		return c.decompress(bands, lines, samples, bis);
@@ -80,7 +86,7 @@ public class SegmentedCompressor extends Compressor {
 	public void doCompress(int[][][] block, int bands, int lines, int samples, BitOutputStream bos) throws IOException {
 		coordQueue = new LinkedList<Coordinate>();
 		sampleQueue = new LinkedList<Integer>();
-		this.entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
+		this.entropyCoder.reset(this.uMax, this.depth, bands, lines*samples, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
 		//add all coords to coordQueue following a diagonal pattern
 		int maxT = lines*samples-1;
 		int topZ = 1;

@@ -9,8 +9,13 @@ import com.jypec.util.bits.BitStreamConstants;
 
 public abstract class EntropyCoder {
 	
+	public abstract void reset(int uMax, int depth, int bands, int samplesPerBand, int gammaZero, int gammaStar, int [] accumulatorInitializationConstant, SamplingUnit su);
 	public abstract void code(int mappedQuantizerIndex, int t, int b, BitOutputStream bos) throws IOException;
 	public abstract int decode(int t, int b, BitInputStream bis) throws IOException;
+	
+	protected int getHybridCounterValue(int t, int gammaStar, int gammaZero) {
+		return this.getCounterValue(t+1, gammaStar, gammaZero);
+	}
 	
 	protected int getCounterValue(int t, int gammaStar, int gammaZero) {
 		int cThresh = (1 << gammaStar) - (1 << gammaZero);

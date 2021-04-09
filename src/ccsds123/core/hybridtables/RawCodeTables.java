@@ -447,7 +447,8 @@ public class RawCodeTables {
 			"0^{10}1 9'h0FF 00100 7'h0F\n" + 
 			"0^{r}2, 1≤r≤2 <7'h(6E+2r)> 0^{8}100 8'h7F\n" + 
 			"0^{r}2, 6≤r≤7 <8'h(EF+r)> 0200 8'h2F\n" + 
-			"0^{8}2 8'h9F 0^{6}200 8'hDF";
+			"0^{8}2 8'h9F 0^{6}200 8'hDF\n" + 
+			"0002 8'h4F";
 	public static final String leca = 
 			"0^{9} 1'h0 0^{7}102 10'h13F\n" + 
 			"0001 5'h19 0^{8}102 11'h4FF\n" + 
