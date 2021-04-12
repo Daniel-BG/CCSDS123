@@ -124,5 +124,32 @@ public class TreeTable<TERMINAL_T> implements Iterable<TreeTable<TERMINAL_T>>{
 	public boolean isRoot() {
 		return this.parent == null;
 	}
+	
+	
+	public boolean checkFullTree(int quantAtStart, int quantAtEnd) {
+		if (this.isTerminal()) {
+			//check that it has a link
+			if (!this.hasValue())
+				throw new IllegalStateException("Terminal table does not have link");
+			return true;
+		} else {
+			//must have links in all children
+			boolean goodChildren = true;
+			try {
+				for (int i = 0; i < quantAtStart; i++) {
+					goodChildren = goodChildren && this.children[i].checkFullTree(quantAtStart, quantAtEnd);
+				}
+				for (int i = 0; i < quantAtEnd; i++) {
+					goodChildren = goodChildren && this.children[this.size - 1 - i].checkFullTree(quantAtStart, quantAtEnd);
+				}
+			} catch (NullPointerException npe) {
+				npe.printStackTrace();
+				throw npe;
+			}
+			if (!goodChildren)
+				throw new IllegalStateException("Table not formed properly");
+			return true;
+		}
+	}
 
 }

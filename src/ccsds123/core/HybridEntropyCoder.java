@@ -22,17 +22,6 @@ import ccsds123.util.Utils;
  */
 public class HybridEntropyCoder extends EntropyCoder {
 	
-	
-	private static final int[] INPUTSYMBOLLIMIT = {	12, 	10, 	8, 		6, 
-													6, 		4, 		4, 		4,
-													2,		2, 		2, 		2, 
-													2, 		2, 		2, 		0};
-
-	private static final int[] THRESHOLD = 		  {	303336, 225404, 166979, 128672, 
-													95597, 	69670, 	50678, 	34898, 
-													23331, 	14935, 	9282, 	5510, 
-													3195, 	1928, 	1112, 	408};
-	
 	private int uMax;
 	private int gammaStar, gammaZero;
 	private long[] accumulator;
@@ -77,7 +66,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 	private int getCodeIndex(long acc, long counter) {
 		int codeIndex = 0;
 		for (int i = 0; i < 16; i++) {
-			if (acc<<14 < (long) counter * (long) THRESHOLD[i])
+			if (acc<<14 < (long) counter * (long) CodeCreator.THRESHOLD[i])
 				codeIndex = i;
 			else
 				break;
@@ -86,7 +75,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 	}
 	
 	private void debug(long value, int bits, String text) {
-		System.out.println(text + " -> " + bits + "'h" + Long.toHexString(value));
+		//System.out.println(text + " -> " + bits + "'h" + Long.toHexString(value));
 	}
 	
 	Stack<Long> debugCnts = new Stack<Long>();
@@ -118,7 +107,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 
 			
 			//perform high or low entropy coding
-			if (accT*(1l<<14) >= (long) THRESHOLD[0] * counterT) {
+			if (accT*(1l<<14) >= (long) CodeCreator.THRESHOLD[0] * counterT) {
 				//high entropy
 				int k = this.getK(counterT, accT);
 				debug(mappedQuantizerIndex, k, "Write High entropy MQI + (" + accT + "," + counterT + ")");
@@ -126,9 +115,9 @@ public class HybridEntropyCoder extends EntropyCoder {
 			} else {
 				//low entropy
 				int codeIndex = this.getCodeIndex(accT, counterT);
-				int inputSymbol = mappedQuantizerIndex <= INPUTSYMBOLLIMIT[codeIndex] ? mappedQuantizerIndex : CodeCreator.CODE_X_VAL;
+				int inputSymbol = mappedQuantizerIndex <= CodeCreator.INPUTSYMBOLLIMIT[codeIndex] ? mappedQuantizerIndex : CodeCreator.CODE_X_VAL;
 				if (inputSymbol == CodeCreator.CODE_X_VAL) {
-					int codeQuant = mappedQuantizerIndex - INPUTSYMBOLLIMIT[codeIndex] - 1;
+					int codeQuant = mappedQuantizerIndex - CodeCreator.INPUTSYMBOLLIMIT[codeIndex] - 1;
 					debug(codeQuant, 0, "Write low entropy excess");
 					this.reverseLengthLimitedGolombPowerOfTwoCode(codeQuant, 0, bos, this.uMax, this.depth);
 				}
@@ -231,7 +220,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 				int mqi;
 				if (t > 0) { //reverse accumulator calculation for next iteration
 					//perform high or low entropy decoding
-					if (accT*(1l<<14) >= (long) THRESHOLD[0] * counterT) {
+					if (accT*(1l<<14) >= (long) CodeCreator.THRESHOLD[0] * counterT) {
 						//was coded on high entropy
 						int k = this.getK(counterT, accT);
 						mqi = this.reverseLengthLimitedGolombPowerOfTwoDecode(k, bis, this.uMax, this.depth);
@@ -259,7 +248,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 						if (inputSymbol == CodeCreator.CODE_X_VAL) {
 							int difference = this.reverseLengthLimitedGolombPowerOfTwoDecode(0, bis, this.uMax, this.depth);
 							debug(difference, 0, "Read low entropy excess");
-							mqi = difference + INPUTSYMBOLLIMIT[codeIndex] + 1;
+							mqi = difference + CodeCreator.INPUTSYMBOLLIMIT[codeIndex] + 1;
 						} else { //inputSymbol is mqi
 							mqi = inputSymbol;
 							debug(mqi, 0, "Input symbol");

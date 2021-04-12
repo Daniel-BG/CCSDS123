@@ -1,8 +1,10 @@
 package ccsds123.core.hybridtables;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,6 +18,16 @@ public class CodeCreator {
 	public static final char CODE_X_HEX = 'D';
 	public static final int CODE_X_VAL = 13;
 	public static final int CODE_AMOUNT = 14;
+	
+	public static final int[] INPUTSYMBOLLIMIT = {	12, 	10, 	8, 		6, 
+			6, 		4, 		4, 		4,
+			2,		2, 		2, 		2, 
+			2, 		2, 		2, 		0};
+
+	public static final int[] THRESHOLD = 		  {	303336, 225404, 166979, 128672, 
+				95597, 	69670, 	50678, 	34898, 
+				23331, 	14935, 	9282, 	5510, 
+				3195, 	1928, 	1112, 	408};
 	
 	@SuppressWarnings("unchecked")
 	static TreeTable<Codeword>[] tables = (TreeTable<Codeword>[]) new TreeTable<?>[16];
@@ -32,18 +44,65 @@ public class CodeCreator {
 			reverseTables[i] = createReverseTable(tables[i], false);
 			reverseFlushTables[i] = createReverseTable(tables[i], true);
 		}
-		//check that all tables are reachable in reverse
+	}
+	
+	public static void checkAllTableIntegrity() {
+		//check full tree table integrity
+		for (int i = 0; i < 16; i++) {
+			tables[i].checkFullTree(INPUTSYMBOLLIMIT[i], 1);
+			reverseTables[i].checkFullTree(2, 0);
+			reverseFlushTables[i].checkFullTree(2, 0);
+		}
+		System.out.println("All tables are full trees");
 		
-		//TODO
+		//check that every node is reachable in reverse and only once
+		for (int i = 0; i < 16; i++) {
+			Set<TreeTable<Codeword>> dtset = new HashSet<>();
+			Stack<TreeTable<Codeword>> dtstack = new Stack<>();
+			//create set of unique tables
+			dtstack.push(tables[i]);
+			while(!dtstack.isEmpty()) {
+				TreeTable<Codeword> ctt = dtstack.pop();
+				if (dtset.contains(ctt))
+					throw new IllegalStateException();
+				dtset.add(ctt);
+				for (TreeTable<Codeword> tt: ctt)
+					dtstack.push(tt);
+			}
+			//check that all are reachable
+			Stack<TreeTable<TreeTable<Codeword>>> reverseStack = new Stack<>();
+			reverseStack.push(reverseTables[i]);
+			reverseStack.push(reverseFlushTables[i]);
+			while (!reverseStack.isEmpty()) {
+				TreeTable<TreeTable<Codeword>> crt = reverseStack.pop();
+				if (crt.isTerminal()) {
+					//remove its object from the dtset
+					if (!dtset.contains(crt.getValue()))
+						throw new IllegalStateException();
+					dtset.remove(crt.getValue());
+				} else {
+					for (TreeTable<TreeTable<Codeword>> child: crt)
+						reverseStack.push(child);
+				}
+			}
+			//check that all were visited
+			if (!dtset.isEmpty())
+				throw new IllegalStateException();
+		}
 		
+		System.out.println("All reverse tables correctly point to all direct tables");
 	}
 	
 	public static void main(String[] args) {
+		//print and check integrity
 		for (int i = 0; i < 16; i++) {
 			System.out.println("Table for " + i + ": " + tables[i]);
 			System.out.println("Rtabl for " + i + ": " + reverseTables[i]);
 			System.out.println("RFtab for " + i + ": " + reverseFlushTables[i]);
 		}
+		System.out.println("All tables built");
+		
+		checkAllTableIntegrity();
 	}
 	
 	public static TreeTable<Codeword>[] getCodeTables() {
