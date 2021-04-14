@@ -151,5 +151,9 @@ public class TreeTable<TERMINAL_T> implements Iterable<TreeTable<TERMINAL_T>>{
 			return true;
 		}
 	}
+	
+	//to build the cool tables
+	public int id = 0;
+	
 
 }

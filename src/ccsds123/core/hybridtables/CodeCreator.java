@@ -1,9 +1,14 @@
 package ccsds123.core.hybridtables;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
 import java.util.regex.Matcher;
@@ -93,6 +98,83 @@ public class CodeCreator {
 		System.out.println("All reverse tables correctly point to all direct tables");
 	}
 	
+	private static final long CODE_FLUSH = 0xf;
+	private static final long CODE_NONE = 0xb;
+	private static final long CODE_TERMINAL = 0xc;
+	private static final long CODE_NEXTTAB  = 0x4;
+	
+	private static void generateVHDLRepr() {
+		//generate IDs for each and every table
+		Queue<TreeTable<Codeword>> tablequeue = new LinkedList<TreeTable<Codeword>>();
+		for (int i = 0; i < 16; i++) {
+			tablequeue.add(tables[i]);
+		}
+		int tableIndex = 0;
+		int maxCodeBits = 0;
+		while (!tablequeue.isEmpty()) {
+			TreeTable<Codeword> tq = tablequeue.poll();
+			if (!tq.isTerminal()) {
+				tq.id = tableIndex;
+				tableIndex++;
+			}
+			for (TreeTable<Codeword> child: tq)
+				tablequeue.add(child);
+			maxCodeBits = Math.max(maxCodeBits, tq.getValue().getBits());
+		}
+		
+		int necessaryRefBits = BitTwiddling.bitsOf(tableIndex);
+		int entryBits = Math.max(necessaryRefBits, maxCodeBits);
+		int entryLengthBits = BitTwiddling.bitsOf(entryBits);
+		int totalBitsPerEntry = 32; //entryBits + entryLengthBits + 1; //1 for either reference/code
+		if (entryBits + entryLengthBits > 28) 
+			throw new IllegalStateException("Code is thought for up to 28 bits of entry plus 4 of entry code, change it if this exception is raised");
+		
+		System.out.println("Total tables: " + tableIndex + " needing " + (CODE_AMOUNT + 1) + " entries and "+ totalBitsPerEntry + " bits per entry ");
+		BigInteger[] binTables = new BigInteger[tableIndex];
+		
+		tablequeue = new LinkedList<TreeTable<Codeword>>();
+		for (int i = 0; i < 16; i++) {
+			tablequeue.add(tables[i]);
+		}
+		while (!tablequeue.isEmpty()) {
+			TreeTable<Codeword> tq = tablequeue.poll();
+			//TODO add the code for the current table
+			if (tq.isTerminal())
+				throw new IllegalStateException("We are not building terminals here, tables need to always have children");
+			long code = tq.getValue().getValue();
+			code |= ((long) tq.getValue().getBits()) << entryLengthBits;
+			code |= CODE_FLUSH << (totalBitsPerEntry - 4);
+			BigInteger base = BigInteger.valueOf(code);
+			
+			for (int i = 0; i < CODE_AMOUNT; i++) {
+				TreeTable<Codeword> child = tq.getChild(i);
+				long nextCode;
+				if (child == null) {
+					//shift base and continue
+					nextCode = CODE_NONE << (totalBitsPerEntry - 4);
+				} else if (child.isTerminal()) {
+					//add terminal thingy to the table
+					nextCode = child.getValue().getValue();
+					nextCode |= ((long) child.getValue().getBits()) << entryLengthBits;
+					nextCode |= CODE_TERMINAL << (totalBitsPerEntry - 4);
+				} else {
+					tablequeue.add(child);
+					//add reference to node to the table
+					nextCode = child.id;
+					nextCode |= CODE_NEXTTAB << (totalBitsPerEntry - 4);
+				}
+				base = base.shiftLeft(totalBitsPerEntry);
+				base = base.or(BigInteger.valueOf(nextCode));
+			}
+			//save the current table entry
+			binTables[tq.id] = base;
+		}
+		//output this shiat
+		for (BigInteger bi: binTables)
+			System.out.println("x\"" + bi.toString(16) + "\",");
+		
+	}
+	
 	public static void main(String[] args) {
 		//print and check integrity
 		for (int i = 0; i < 16; i++) {
@@ -103,8 +185,11 @@ public class CodeCreator {
 		System.out.println("All tables built");
 		
 		checkAllTableIntegrity();
+		generateVHDLRepr();
 	}
 	
+
+
 	public static TreeTable<Codeword>[] getCodeTables() {
 		return tables;
 	}

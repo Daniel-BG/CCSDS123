@@ -84,8 +84,8 @@ public class HybridEntropyCoder extends EntropyCoder {
 	@Override
 	public void code(int mappedQuantizerIndex, int t, int b, BitOutputStream bos) throws IOException {
 		//generate counter for current iteration
-		long counterTm1 = this.getHybridCounterValue(t-1, this.gammaStar, this.gammaZero);
-		long counterT = this.getHybridCounterValue(t, this.gammaStar, this.gammaZero);
+		long counterT = this.getCounterValue(t, this.gammaStar, this.gammaZero);
+		long counterTp1 = this.getCounterValue(t+1, this.gammaStar, this.gammaZero);
 		long accT;
 		debug(mappedQuantizerIndex, this.depth, "Coding mqi");
 
@@ -96,25 +96,25 @@ public class HybridEntropyCoder extends EntropyCoder {
 			accT = this.accumulator[b];
 		} else {
 			//output last acc bit if we are losing it
-			if (counterTm1 == ((1l<<this.gammaStar) - 1)) {
+			if (counterT == ((1l<<this.gammaStar) - 1)) {
 				Bit bit = this.accumulator[b] % 2 == 0 ? Bit.BIT_ZERO : Bit.BIT_ONE;
 				bos.writeBit(bit);
 				debug(bit.toInteger(), this.depth, "Write excess bit from acc: " + Long.toHexString(this.accumulator[b]));
 			}
 			//update accumulator for current iteration
-			this.updateAcc(b, mappedQuantizerIndex, (int) counterTm1);
+			this.updateAcc(b, mappedQuantizerIndex, (int) counterT);
 			accT = this.accumulator[b];
 
 			
 			//perform high or low entropy coding
-			if (accT*(1l<<14) >= (long) CodeCreator.THRESHOLD[0] * counterT) {
+			if (accT<<14 >= (long) CodeCreator.THRESHOLD[0] * counterTp1) {
 				//high entropy
-				int k = this.getK(counterT, accT);
-				debug(mappedQuantizerIndex, k, "Write High entropy MQI + (" + accT + "," + counterT + ")");
+				int k = this.getK(counterTp1, accT);
+				debug(mappedQuantizerIndex, k, "Write High entropy MQI + (" + accT + "," + counterTp1 + ")");
 				this.reverseLengthLimitedGolombPowerOfTwoCode(mappedQuantizerIndex, k, bos, this.uMax, this.depth);
 			} else {
 				//low entropy
-				int codeIndex = this.getCodeIndex(accT, counterT);
+				int codeIndex = this.getCodeIndex(accT, counterTp1);
 				int inputSymbol = mappedQuantizerIndex <= CodeCreator.INPUTSYMBOLLIMIT[codeIndex] ? mappedQuantizerIndex : CodeCreator.CODE_X_VAL;
 				if (inputSymbol == CodeCreator.CODE_X_VAL) {
 					int codeQuant = mappedQuantizerIndex - CodeCreator.INPUTSYMBOLLIMIT[codeIndex] - 1;
@@ -134,7 +134,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 			}
 		}
 		
-		debugCnts.add(counterT);
+		debugCnts.add(counterTp1);
 		debugAccs.add(accT);
 		
 		if (t == this.samplesPerBand - 1 && b == this.bands - 1) {//last sample, flush things
@@ -156,10 +156,9 @@ public class HybridEntropyCoder extends EntropyCoder {
 	}
 	
 	private void updateAcc(int b, int mqi, int counter) {
-		if (counter < ((1<<this.gammaStar) - 1)) {
-			this.accumulator[b] = this.accumulator[b] + 4*mqi;
-		} else {
-			this.accumulator[b] = (this.accumulator[b] + 4*mqi + 1) >> 1;
+		this.accumulator[b] += 4*mqi;
+		if (counter == ((1<<this.gammaStar) - 1)) {
+			this.accumulator[b] = (this.accumulator[b] + 1) >> 1;
 		}
 	}
 	
@@ -206,13 +205,13 @@ public class HybridEntropyCoder extends EntropyCoder {
 		//now we invert the coding operation (always BIP mode)
 		for (int t = this.samplesPerBand - 1; t >= 0; t--) {
 			for (int b = this.bands - 1; b >= 0; b--) {
-				long counterT = this.getHybridCounterValue(t, this.gammaStar, this.gammaZero);
-				long counterTm1 = this.getHybridCounterValue(t-1, this.gammaStar, this.gammaZero);
+				long counterTp1 = this.getCounterValue(t+1, this.gammaStar, this.gammaZero);
+				long counterT = this.getCounterValue(t, this.gammaStar, this.gammaZero);
 				long accT = this.accumulator[b];
 				
 				long codeCnt = debugCnts.pop();
-				if (counterT != codeCnt) 
-					throw new IllegalStateException("(" + codeCnt + "->" + counterT + ")");
+				if (counterTp1 != codeCnt) 
+					throw new IllegalStateException("(" + codeCnt + "->" + counterTp1 + ")");
 				long codeAcc = debugAccs.pop();
 				if (accT != codeAcc)
 					throw new IllegalStateException("(" + codeAcc + "->" + accT + ")");
@@ -220,14 +219,14 @@ public class HybridEntropyCoder extends EntropyCoder {
 				int mqi;
 				if (t > 0) { //reverse accumulator calculation for next iteration
 					//perform high or low entropy decoding
-					if (accT*(1l<<14) >= (long) CodeCreator.THRESHOLD[0] * counterT) {
+					if (accT*(1l<<14) >= (long) CodeCreator.THRESHOLD[0] * counterTp1) {
 						//was coded on high entropy
-						int k = this.getK(counterT, accT);
+						int k = this.getK(counterTp1, accT);
 						mqi = this.reverseLengthLimitedGolombPowerOfTwoDecode(k, bis, this.uMax, this.depth);
-						debug(mqi, k, "Read high entropy mqi (" + accT + "," + counterT + ")");
+						debug(mqi, k, "Read high entropy mqi (" + accT + "," + counterTp1 + ")");
 					} else {
 						//low entropy
-						int codeIndex = this.getCodeIndex(accT, counterT);
+						int codeIndex = this.getCodeIndex(accT, counterTp1);
 						//if current table is root, we need to read a new table
 						if (this.activeTables[codeIndex].isRoot()) {
 							TreeTable<TreeTable<Codeword>> rt = reverseTables[codeIndex];
@@ -257,9 +256,9 @@ public class HybridEntropyCoder extends EntropyCoder {
 					
 
 					//update accumulator for previous iteration
-					this.reverseUpdateAcc(b, mqi, (int) counterTm1);
+					this.reverseUpdateAcc(b, mqi, (int) counterT);
 					//recover lost bit if renormalized
-					if (counterTm1 == ((1l<<this.gammaStar) - 1)) {
+					if (counterT == ((1l<<this.gammaStar) - 1)) {
 						Bit bit = bis.readBit();
 						if (bit == Bit.BIT_ZERO) 
 							this.accumulator[b] += 1;
