@@ -16,8 +16,8 @@ import ccsds123.util.Utils;
 public class DirectCompressor extends Compressor {
 	private static final boolean SHOW_PROGRESS = false;
 	
-	public DirectCompressor(EntropyCoder ec) {
-		super(ec);
+	public DirectCompressor(EntropyCoder ec, CompressorParameters cp, SamplingUnit su) {
+		super(ec, cp, su);
 	}
 	
 
@@ -31,16 +31,14 @@ public class DirectCompressor extends Compressor {
 	 * @throws IOException 
 	 */
 	@Override
-	public void doCompress(int [][][] block, int bands, int lines, int samples, BitOutputStream bos) throws IOException {
-		this.checkParameterSanity(bands);
-		
-		int [][][] repBlock = new int[bands][lines][samples];
-		int [][][] diffBlock = new int[bands][lines][samples];
+	public void doCompress(int [][][] block, BitOutputStream bos) throws IOException {
+		int [][][] repBlock = new int[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		int [][][] diffBlock = new int[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		
 		////WEIGHT INITIALIZATION 4.6.3.2
-		int [][] weights = this.getInitialWeights(bands);
+		int [][] weights = this.parameters.getInitialWeights();
 		
-		entropyCoder.reset(this.uMax, this.depth, bands, lines*samples, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
+		entropyCoder.reset();
 		
 		//SampleAdaptiveEntropyCoder entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
 		
@@ -48,15 +46,15 @@ public class DirectCompressor extends Compressor {
 		//BIP: lines>samples>bands
 		//BIL: lines>bands>sample
 		//BSQ: bands>lines>samples
-		for (int l = 0; l < lines; l++) {
-			for (int s = 0; s < samples; s++) {
-				for (int b = 0; b < bands; b++) {
-					int t = l*samples + s;
+		for (int l = 0; l < this.parameters.lines; l++) {
+			for (int s = 0; s < this.parameters.samples; s++) {
+				for (int b = 0; b < this.parameters.bands; b++) {
+					int t = l*this.parameters.samples + s;
 					su.ssmpl.sample(block[b][l][s]);
 					
 					if (SHOW_PROGRESS) {
-						if ((b+s*bands+l*bands*samples) % 1000000 == 0) {
-							System.out.println((b+s*bands+l*bands*samples) / 10000 + "0k / " + (lines*bands*samples) / 1000 + "k");
+						if ((b+s*this.parameters.bands+l*this.parameters.bands*this.parameters.samples) % 1000000 == 0) {
+							System.out.println((b+s*this.parameters.bands+l*this.parameters.bands*this.parameters.samples) / 10000 + "0k / " + (this.parameters.lines*this.parameters.bands*this.parameters.samples) / 1000 + "k");
 						}
 					}
 					//compressing sample block[b][l][s]
@@ -81,7 +79,7 @@ public class DirectCompressor extends Compressor {
 					}*/
 					
 					////LOCAL SUM BEGIN 4.4
-					long localSum = su.lssmpl.sample(this.calcLocalSum(b, l, s, repBlock, samples));
+					long localSum = su.lssmpl.sample(this.calcLocalSum(b, l, s, repBlock, this.parameters.samples));
 					////LOCAL SUM END
 	
 					////LOCAL DIFF BEGIN 4.5
@@ -114,21 +112,21 @@ public class DirectCompressor extends Compressor {
 					//DR PRED ERR 4.10.1
 					long doubleResolutionPredictionError = su.drpesmpl.sample(this.calcDoubleResolutionPredictionError(clippedQuantizerBinCenter, doubleResolutionPredSampleValue));
 					//WEIGHT UPDATE SCALING EXPONENT 4.10.2
-					long weightUpdateScalingExponent = su.wusesmpl.sample(this.calcWeightUpdateScalingExponent(t, samples));
+					long weightUpdateScalingExponent = su.wusesmpl.sample(this.calcWeightUpdateScalingExponent(t, this.parameters.samples));
 					//WEIGHT UPDATE 4.10.3
 					if (t > 0) {
 						int windex = 0;
-						if (this.fullPredictionMode) {
-							int weightExponentOffset = this.getIntraBandWeightExponentOffset(b);
+						if (this.parameters.fullPredictionMode) {
+							int weightExponentOffset = this.parameters.getIntraBandWeightExponentOffset(b);
 							//north, west, northwest
 							weights[b][0] = su.wsmpl.sample(this.updateWeight(weights[b][0], doubleResolutionPredictionError, northDiff, weightUpdateScalingExponent, weightExponentOffset, t));
 							weights[b][1] = su.wsmpl.sample(this.updateWeight(weights[b][1], doubleResolutionPredictionError, westDiff, weightUpdateScalingExponent, weightExponentOffset, t));
 							weights[b][2] = su.wsmpl.sample(this.updateWeight(weights[b][2], doubleResolutionPredictionError, northWestDiff, weightUpdateScalingExponent, weightExponentOffset, t));
 							windex = 3;
 						}
-						for (int p = 0; p < this.predictionBands; p++) {
+						for (int p = 0; p < this.parameters.predictionBands; p++) {
 							if (b - p > 0) 
-								weights[b][windex+p] = su.wsmpl.sample(this.updateWeight(weights[b][windex+p], doubleResolutionPredictionError, diffBlock[b-p-1][l][s], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(b, p), t));
+								weights[b][windex+p] = su.wsmpl.sample(this.updateWeight(weights[b][windex+p], doubleResolutionPredictionError, diffBlock[b-p-1][l][s], weightUpdateScalingExponent, parameters.getInterBandWeightExponentOffsets(b, p), t));
 						}
 					}
 					
@@ -151,28 +149,28 @@ public class DirectCompressor extends Compressor {
 	}
 	
 	
-	public int[][][] decompress(int bands, int lines, int samples, BitInputStream bis) throws IOException {
+	public int[][][] decompress(BitInputStream bis) throws IOException {
 		//helpers
-		entropyCoder.reset(this.uMax, this.depth, bands, lines*samples, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
+		entropyCoder.reset();
 			
 		//SampleAdaptiveEntropyCoder entropyCoder = new SampleAdaptiveEntropyCoder(this.uMax, this.depth, bands, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant);
-		int [][] weights = this.getInitialWeights(bands);
+		int [][] weights = this.parameters.getInitialWeights();
 		
 		//image will be output here
-		int [][][] image = new int[bands][lines][samples];
+		int [][][] image = new int[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		
 		//auxiliary vars
-		int [][][] diffBlock = new int[bands][lines][samples];
-		int [][][] repBlock = new int[bands][lines][samples];
+		int [][][] diffBlock = new int[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		int [][][] repBlock = new int[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		
-		for (int l = 0; l < lines; l++) {
-			for (int s = 0; s < samples; s++) {
-				for (int b = 0; b < bands; b++) {
-					int t = l*samples + s;
+		for (int l = 0; l < this.parameters.lines; l++) {
+			for (int s = 0; s < this.parameters.samples; s++) {
+				for (int b = 0; b < this.parameters.bands; b++) {
+					int t = l*this.parameters.samples + s;
 					
 					if (SHOW_PROGRESS) {
-						if ((b+s*bands+l*bands*samples) % 1000000 == 0) {
-							System.out.println((b+s*bands+l*bands*samples) / 10000 + "0k / " + (lines*bands*samples) / 1000 + "k");
+						if ((b+s*this.parameters.bands+l*this.parameters.bands*this.parameters.samples) % 1000000 == 0) {
+							System.out.println((b+s*this.parameters.bands+l*this.parameters.bands*this.parameters.samples) / 10000 + "0k / " + (this.parameters.lines*this.parameters.bands*this.parameters.samples) / 1000 + "k");
 						}
 					}
 					
@@ -202,7 +200,7 @@ public class DirectCompressor extends Compressor {
 					long mappedQuantizerIndex = su.mqismpl.unSample((long) entropyCoder.decode(t, b, bis));
 					
 					////LOCAL SUM BEGIN 4.4
-					long localSum = su.lssmpl.unSample(this.calcLocalSum(b, l, s, repBlock, samples));
+					long localSum = su.lssmpl.unSample(this.calcLocalSum(b, l, s, repBlock, this.parameters.samples));
 					////LOCAL SUM END
 	
 					////LOCAL DIFF BEGIN 4.5
@@ -247,21 +245,21 @@ public class DirectCompressor extends Compressor {
 					//DR PRED ERR 4.10.1
 					long doubleResolutionPredictionError = su.drpesmpl.unSample(this.calcDoubleResolutionPredictionError(clippedQuantizerBinCenter, doubleResolutionPredSampleValue));
 					//WEIGHT UPDATE SCALING EXPONENT 4.10.2
-					long weightUpdateScalingExponent = su.wusesmpl.unSample(this.calcWeightUpdateScalingExponent(t, samples));
+					long weightUpdateScalingExponent = su.wusesmpl.unSample(this.calcWeightUpdateScalingExponent(t, this.parameters.samples));
 					//WEIGHT UPDATE 4.10.3
 					if (t > 0) {
 						int windex = 0;
-						if (this.fullPredictionMode) {
-							int weightExponentOffset = this.getIntraBandWeightExponentOffset(b);
+						if (this.parameters.fullPredictionMode) {
+							int weightExponentOffset = this.parameters.getIntraBandWeightExponentOffset(b);
 							//north, west, northwest
 							weights[b][0] = su.wsmpl.unSample(this.updateWeight(weights[b][0], doubleResolutionPredictionError, northDiff, weightUpdateScalingExponent, weightExponentOffset, t));
 							weights[b][1] = su.wsmpl.unSample(this.updateWeight(weights[b][1], doubleResolutionPredictionError, westDiff, weightUpdateScalingExponent, weightExponentOffset, t));
 							weights[b][2] = su.wsmpl.unSample(this.updateWeight(weights[b][2], doubleResolutionPredictionError, northWestDiff, weightUpdateScalingExponent, weightExponentOffset, t));
 							windex = 3;
 						}
-						for (int p = 0; p < this.predictionBands; p++) {
+						for (int p = 0; p < this.parameters.predictionBands; p++) {
 							if (b - p > 0) 
-								weights[b][windex+p] = su.wsmpl.unSample(this.updateWeight(weights[b][windex+p], doubleResolutionPredictionError, diffBlock[b-p-1][l][s], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(b, p), t));
+								weights[b][windex+p] = su.wsmpl.unSample(this.updateWeight(weights[b][windex+p], doubleResolutionPredictionError, diffBlock[b-p-1][l][s], weightUpdateScalingExponent, parameters.getInterBandWeightExponentOffsets(b, p), t));
 						}
 					}
 					
@@ -285,7 +283,7 @@ public class DirectCompressor extends Compressor {
 			throw new IllegalArgumentException("Undefined local sum for t=0");*/
 		
 		long localSum = 0;
-		switch (this.localSumType) {
+		switch (this.parameters.localSumType) {
 			case WIDE_NEIGHBOR_ORIENTED: { //EQ 20
 				if (l > 0 && s > 0 && s < samples - 1) {
 					localSum = repBlock[b][l][s-1] + repBlock[b][l-1][s-1] + repBlock[b][l-1][s] + repBlock[b][l-1][s+1];
@@ -312,7 +310,7 @@ public class DirectCompressor extends Compressor {
 				} else if (l > 0 && s == samples - 1) {
 					localSum = (repBlock[b][l-1][s-1] + repBlock[b][l-1][s]) << 1;
 				} else if (l == 0 && s > 0 && b == 0) {
-					localSum = ParameterCalc.sMid(this.depth) << 2;
+					localSum = ParameterCalc.sMid(this.parameters.depth) << 2;
 				} else {
 					if (l != 0 || s != 0) {
 						throw new IllegalStateException("Should not get here");
@@ -338,7 +336,7 @@ public class DirectCompressor extends Compressor {
 				} else if (l == 0 && s > 0 && b > 0) {
 					localSum = repBlock[b-1][l][s-1] << 2;
 				} else if (l == 0 && s > 0 && b == 0) {
-					localSum = ParameterCalc.sMid(this.depth) << 2;
+					localSum = ParameterCalc.sMid(this.parameters.depth) << 2;
 				} else {
 					if (l != 0 || s != 0) {
 						throw new IllegalStateException("Should not get here");
@@ -356,7 +354,7 @@ public class DirectCompressor extends Compressor {
 		/*if (l == 0 && s == 0)
 			throw new IllegalArgumentException("North diff not defined for t=0");*/
 		
-		if (this.fullPredictionMode && (s != 0 || l != 0))
+		if (this.parameters.fullPredictionMode && (s != 0 || l != 0))
 			if (l > 0) 
 				return (repBlock[b][l-1][s] << 2) - localSum;
 		return 0;
@@ -366,7 +364,7 @@ public class DirectCompressor extends Compressor {
 		/*if (l == 0 && s == 0)
 			throw new IllegalArgumentException("West diff not defined for t=0");*/
 		
-		if (this.fullPredictionMode && (s != 0 || l != 0)) {
+		if (this.parameters.fullPredictionMode && (s != 0 || l != 0)) {
 			if (s > 0 && l > 0) {
 				return (repBlock[b][l][s-1] << 2) - localSum;
 			} else if (s == 0 && l > 0) {
@@ -380,7 +378,7 @@ public class DirectCompressor extends Compressor {
 		/*if (l == 0 && s == 0)
 			throw new IllegalArgumentException("NorthWest diff not defined for t=0");*/
 		
-		if (this.fullPredictionMode && (s != 0 || l != 0)) {
+		if (this.parameters.fullPredictionMode && (s != 0 || l != 0)) {
 			if (s > 0 && l > 0) {
 				return (repBlock[b][l-1][s-1] << 2) - localSum;
 			} else if (s == 0 && l > 0) {
@@ -396,15 +394,15 @@ public class DirectCompressor extends Compressor {
 			throw new IllegalArgumentException("PredictedCentralDiff not defined for t=0");*/
 		
 		long predictedCentralDiff = 0;
-		if (b != 0 || this.fullPredictionMode) {
+		if (b != 0 || this.parameters.fullPredictionMode) {
 			int windex = 0;
-			if (this.fullPredictionMode) {
+			if (this.parameters.fullPredictionMode) {
 				predictedCentralDiff += weights[b][0] * northDiff;
 				predictedCentralDiff += weights[b][1] * westDiff;
 				predictedCentralDiff += weights[b][2] * northWestDiff;
 				windex = 3;
 			}
-			for (int p = 0; p < this.predictionBands; p++) {
+			for (int p = 0; p < this.parameters.predictionBands; p++) {
 				if (b - p > 0) 
 					predictedCentralDiff += weights[b][p+windex] * diffBlock[b-p-1][l][s];
 			}
@@ -413,32 +411,17 @@ public class DirectCompressor extends Compressor {
 		return predictedCentralDiff;
 	}
 	
-
-	
 	private long calcDoubleResolutionSampleValue(int b, int l, int s, long highResolutionPredSampleValue, int[][][] block) { //EQ 38
 		long doubleResolutionPredSampleValue = 0;
 		if (s > 0 || l > 0) {
-			doubleResolutionPredSampleValue = highResolutionPredSampleValue >> (this.omega + 1);
-		} else if (this.predictionBands == 0 || b == 0) {
-			doubleResolutionPredSampleValue = ParameterCalc.sMid(this.depth) << 1;
+			doubleResolutionPredSampleValue = highResolutionPredSampleValue >> (this.parameters.omega + 1);
+		} else if (this.parameters.predictionBands == 0 || b == 0) {
+			doubleResolutionPredSampleValue = ParameterCalc.sMid(this.parameters.depth) << 1;
 		} else {
 			doubleResolutionPredSampleValue = block[b-1][l][s] << 1;;
 		}
 		return doubleResolutionPredSampleValue;
 	}
-	
-
-	
-
-	
-
-	
-
-	
-
-
-	
-
 
 	private long deCalcQuantizerIndex(long mappedQuantizerIndex, long theta, long doubleResolutionPredictedSampleValue, int t, long predictedSampleValue, long maxErrVal) { //INVERSE OF EQ 55
 		if (mappedQuantizerIndex > 2*theta) {

@@ -33,9 +33,14 @@ public class Sampler <T> {
 	}
 	
 	private int uSampleCnt = 0;
-	public T unSample(T t) {		
+	private T doUnSample(T t, boolean reverse) {
 		if (!DISABLE_CHECKING) {
-			T s = checkingDQ.removeFirst();
+			T s;
+			if (!reverse)
+				s = checkingDQ.removeFirst();
+			else
+				s = checkingDQ.removeLast();
+			
 			if (!s.equals(t)) {
 				throw new IllegalStateException("Difference @" + uSampleCnt + "! " + t.toString() + " -> " + s.toString());
 			}
@@ -45,8 +50,20 @@ public class Sampler <T> {
 		return t;
 	}
 	
+	public T unSample(T t) {		
+		return this.doUnSample(t, false);
+	}
+	
+	public T reverseUnSample(T t) {		
+		return this.doUnSample(t, true);
+	}
+	
 	public T burnSample() {
 		return checkingDQ.removeFirst();
+	}
+	
+	public T reverseBurnSample() {
+		return checkingDQ.removeLast();
 	}
 
 	public void export() throws IOException {

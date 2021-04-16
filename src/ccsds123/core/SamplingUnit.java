@@ -5,7 +5,7 @@ import java.io.IOException;
 import ccsds123.util.Sampler;
 
 public class SamplingUnit {
-	
+	//predictor samplers
 	protected Sampler<Integer> ssmpl 		= new Sampler<Integer>("c_s");
 	protected Sampler<Long> drpsvsmpl 		= new Sampler<Long>("c_drpsv");
 	protected Sampler<Long> psvsmpl	 		= new Sampler<Long>("c_psv");
@@ -27,10 +27,11 @@ public class SamplingUnit {
 	protected Sampler<Long> srsmpl			= new Sampler<Long>("c_sr");
 	protected Sampler<Long> tsmpl			= new Sampler<Long>("c_ts");
 	protected Sampler<Long> mqismpl			= new Sampler<Long>("c_mqi");
-	
-	protected Sampler<Integer> uismpl			= new Sampler<Integer>("c_ui");
+	//encoder samplers
+	protected Sampler<Integer> uismpl		= new Sampler<Integer>("c_ui");
 	protected Sampler<Integer> uicismpl		= new Sampler<Integer>("c_uici");
-	protected Sampler<Integer> accsmpl		= new Sampler<Integer>("c_acc");
+	protected Sampler<Long> accsmpl			= new Sampler<Long>("c_acc");
+	protected Sampler<Long> cntsmpl 		= new Sampler<Long>("c_cnt");
 	
 	
 	public void export() throws IOException {
@@ -59,6 +60,7 @@ public class SamplingUnit {
 		accsmpl.export();
 		uicismpl.export();
 		uismpl.export();	
+		cntsmpl.export();
 	}
 
 }

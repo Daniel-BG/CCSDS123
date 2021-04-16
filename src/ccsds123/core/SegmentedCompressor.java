@@ -10,17 +10,15 @@ import com.jypec.util.bits.BitOutputStream;
 
 public class SegmentedCompressor extends Compressor {
 	
-	public SegmentedCompressor(EntropyCoder ec) {
-		super(ec);
+	public SegmentedCompressor(EntropyCoder ec, CompressorParameters cp, SamplingUnit su) {
+		super(ec, cp, su);
 	}
 
 
 	@Override
-	public int[][][] decompress(int bands, int lines, int samples, BitInputStream bis) throws IOException {
-		DirectCompressor c = new DirectCompressor(this.entropyCoder);
-        c.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, this.absErr, this.relErr, this.useAbsoluteErrLimit, this.useRelativeErrLimit);
-        c.setSamplingUnit(getSamplingUnit());
-		return c.decompress(bands, lines, samples, bis);
+	public int[][][] decompress(BitInputStream bis) throws IOException {
+		DirectCompressor c = new DirectCompressor(this.entropyCoder, this.parameters, this.su);
+		return c.decompress(bis);
 	}
 	
 	
@@ -83,12 +81,12 @@ public class SegmentedCompressor extends Compressor {
 	
 
 	@Override
-	public void doCompress(int[][][] block, int bands, int lines, int samples, BitOutputStream bos) throws IOException {
+	public void doCompress(int[][][] block, BitOutputStream bos) throws IOException {
 		coordQueue = new LinkedList<Coordinate>();
 		sampleQueue = new LinkedList<Integer>();
-		this.entropyCoder.reset(this.uMax, this.depth, bands, lines*samples, this.gammaZero, this.gammaStar, this.accumulatorInitializationConstant, this.su);
+		this.entropyCoder.reset();
 		//add all coords to coordQueue following a diagonal pattern
-		int maxT = lines*samples-1;
+		int maxT = this.parameters.lines*this.parameters.samples-1;
 		int topZ = 1;
 		int bottomZ = 0;
 		int tStart = 0;
@@ -96,8 +94,8 @@ public class SegmentedCompressor extends Compressor {
 			for (int i = topZ-1; i >= bottomZ; i--) {
 				int z = i;
 				int t = tStart + (topZ - 1) - i;
-				int x = t%samples;
-				int y = t/samples;
+				int x = t%this.parameters.samples;
+				int y = t/this.parameters.samples;
 				coordQueue.add(new Coordinate(z, y, x));
 				sampleQueue.add(block[z][y][x]);
 				if (t == maxT) {
@@ -105,7 +103,7 @@ public class SegmentedCompressor extends Compressor {
 					break;
 				}
 			}
-			if (topZ < bands) {
+			if (topZ < this.parameters.bands) {
 				topZ++;
 			} else {
 				tStart++;
@@ -125,30 +123,30 @@ public class SegmentedCompressor extends Compressor {
 		Queue<Pair<int[], Coordinate>>	weightQueue 	= new LinkedList<Pair<int[], Coordinate>>();
 		Queue<Integer> firstPixelQueueDRPSV = new LinkedList<Integer>();
 		
-		int[][][] sarr = new int[bands][lines][samples];
-		long[][][] drpsvarr = new long[bands][lines][samples];
-		long[][][] psvarr = new long[bands][lines][samples];
-		long[][][] prarr = new long[bands][lines][samples];
-		Queue<?>[][][] warr = new Queue[bands][lines][samples];
-		long[][][] wusearr = new long[bands][lines][samples];
-		long[][][] dprearr = new long[bands][lines][samples];
-		long[][][] drsrarr = new long[bands][lines][samples];
-		long[][][] cqbcarr = new long[bands][lines][samples];
-		long[][][] mevarr = new long[bands][lines][samples];
-		long[][][] hrpsvarr = new long[bands][lines][samples];
-		long[][][] pcdarr = new long[bands][lines][samples];
-		long[][][] cldarr = new long[bands][lines][samples];
-		long[][][] nwdarr = new long[bands][lines][samples];
-		long[][][] wdarr = new long[bands][lines][samples];
-		long[][][] ndarr = new long[bands][lines][samples];
-		long[][][] lsarr = new long[bands][lines][samples];
-		long[][][] qiarr = new long[bands][lines][samples];
-		long[][][] srarr = new long[bands][lines][samples];
-		long[][][] tarr = new long[bands][lines][samples];
-		long[][][] mqiarr = new long[bands][lines][samples];
+		int[][][] sarr 		= new int[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] drpsvarr = new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] psvarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] prarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		Queue<?>[][][] warr = new Queue[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] wusearr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] dprearr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] drsrarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] cqbcarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] mevarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] hrpsvarr = new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] pcdarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] cldarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] nwdarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] wdarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] ndarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] lsarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] qiarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] srarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] tarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] mqiarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		
 		
-		int [][] initialWeights = this.getInitialWeights(bands);
+		int [][] initialWeights = this.parameters.getInitialWeights();
 		for (int i = 0; i < initialWeights.length; i++) {
 			initialWeightQueue.add(new Pair<int[], Coordinate>(initialWeights[i], new Coordinate(i, 0, 0)));
 		}
@@ -190,12 +188,12 @@ public class SegmentedCompressor extends Compressor {
 				northCoord = qData.second();
 			}
 			//north east sample
-			if (currCoord.firstLine() && !currCoord.lastSample(samples)) {
+			if (currCoord.firstLine() && !currCoord.lastSample(this.parameters.samples)) {
 				northEastRep = 0l;
 				nextNorthEastRep = 0l;
-			} else if (currCoord.lastSample(samples)){
+			} else if (currCoord.lastSample(this.parameters.samples)){
 				northEastRep = 0l;
-				if (currCoord.lastLine(lines)) {
+				if (currCoord.lastLine(this.parameters.lines)) {
 					nextNorthEastRep = 0l;
 				} else {
 					qData = northEastQueue.remove();
@@ -221,9 +219,9 @@ public class SegmentedCompressor extends Compressor {
 			
 			////LOCAL SUM BEGIN 4.4
 			long localSum;
-			switch (this.localSumType) {
+			switch (this.parameters.localSumType) {
 				case WIDE_NEIGHBOR_ORIENTED: { //EQ 20
-					if (!currCoord.firstLine() && !currCoord.firstSample() && !currCoord.lastSample(samples)) {
+					if (!currCoord.firstLine() && !currCoord.firstSample() && !currCoord.lastSample(this.parameters.samples)) {
 						this.checkCoordinates(currCoord, westCoord, northWestCoord, northCoord, northEastCoord);
 						localSum = westRep + northRep + northEastRep + northWestRep;
 					} else if (currCoord.firstLine() && !currCoord.firstSample()) {
@@ -232,7 +230,7 @@ public class SegmentedCompressor extends Compressor {
 					} else if (!currCoord.firstLine() && currCoord.firstSample()) {
 						this.checkCoordinates(currCoord, null, null, northCoord, northEastCoord);
 						localSum = (northRep + northEastRep) << 1;
-					} else if (!currCoord.firstLine() && currCoord.lastSample(samples)) {
+					} else if (!currCoord.firstLine() && currCoord.lastSample(this.parameters.samples)) {
 						this.checkCoordinates(currCoord, westCoord, northWestCoord, northCoord, null);
 						localSum = westRep + northWestRep + (northRep << 1);
 					} else if (currCoord.firstT()){
@@ -283,7 +281,7 @@ public class SegmentedCompressor extends Compressor {
 			
 			////PREDICTED CENTRAL LOCAL DIFFERENCE 4.7.1
 			//TAKE DIFFERENCES
-			long [] diffs = new long[this.predictionBands];
+			long [] diffs = new long[this.parameters.predictionBands];
 			if (!currCoord.firstBand()) {
 				Pair<long[], Coordinate> pp = diffQueue.remove();
 				diffs = pp.first();
@@ -312,13 +310,13 @@ public class SegmentedCompressor extends Compressor {
 			int windex = 0;
 			long predictedCentralDiff = 0;
 			//if (!currCoord.firstBand() || this.fullPredictionMode) {
-			if (this.fullPredictionMode) {
+			if (this.parameters.fullPredictionMode) {
 				predictedCentralDiff += localWeights[0] * northDiff;
 				predictedCentralDiff += localWeights[1] * westDiff;
 				predictedCentralDiff += localWeights[2] * northWestDiff;
 				windex = 3;
 			}
-			for (int p = 0; p < this.predictionBands; p++) {
+			for (int p = 0; p < this.parameters.predictionBands; p++) {
 				//if (currCoord.band - p > 0) 
 				predictedCentralDiff += localWeights[p+windex] * diffs[p];
 			}
@@ -331,9 +329,9 @@ public class SegmentedCompressor extends Compressor {
 			//DR PREDICTED SAMPLE VALUE 4.7.3
 			long doubleResolutionPredSampleValue = 0;
 			if (!currCoord.firstSample() || !currCoord.firstLine()) {
-				doubleResolutionPredSampleValue = highResolutionPredSampleValue >> (this.omega + 1);
-			} else if (this.predictionBands == 0 || currCoord.firstBand()) {
-				doubleResolutionPredSampleValue = ParameterCalc.sMid(this.depth) << 1;
+				doubleResolutionPredSampleValue = highResolutionPredSampleValue >> (this.parameters.omega + 1);
+			} else if (this.parameters.predictionBands == 0 || currCoord.firstBand()) {
+				doubleResolutionPredSampleValue = ParameterCalc.sMid(this.parameters.depth) << 1;
 			} else {
 				doubleResolutionPredSampleValue = firstPixelQueueDRPSV.remove() << 1;
 			}
@@ -343,8 +341,8 @@ public class SegmentedCompressor extends Compressor {
 			
 			//PRED RES 4.8.1 + 4.8.2.1
 			long predictionResidual = this.calcPredictionResidual(currSample, predictedSampleValue);
-			long maxErrVal = this.calcMaxErrVal(currCoord.band, predictedSampleValue, currCoord.getT(samples));
-			long quantizerIndex = this.calcQuantizerIndex(predictionResidual, maxErrVal, currCoord.getT(samples));
+			long maxErrVal = this.calcMaxErrVal(currCoord.band, predictedSampleValue, currCoord.getT(this.parameters.samples));
+			long quantizerIndex = this.calcQuantizerIndex(predictionResidual, maxErrVal, currCoord.getT(this.parameters.samples));
 			
 			//DR SAMPLE REPRESENTATIVE AND SAMPLE REPRESENTATIVE 4.9
 			long clippedQuantizerBinCenter = this.calcClipQuantizerBinCenter(predictedSampleValue, quantizerIndex, maxErrVal);
@@ -353,26 +351,26 @@ public class SegmentedCompressor extends Compressor {
 			//DR PRED ERR 4.10.1
 			long doubleResolutionPredictionError = this.calcDoubleResolutionPredictionError(clippedQuantizerBinCenter, doubleResolutionPredSampleValue);
 			//WEIGHT UPDATE SCALING EXPONENT 4.10.2
-			long weightUpdateScalingExponent = this.calcWeightUpdateScalingExponent(currCoord.getT(samples), samples);
+			long weightUpdateScalingExponent = this.calcWeightUpdateScalingExponent(currCoord.getT(this.parameters.samples), this.parameters.samples);
 			
 			
 			//WEIGHT UPDATE 4.10.3
 			LinkedList<Integer> cwl = new LinkedList<Integer>();
-			if (currCoord.getT(samples) > 0) {
+			if (currCoord.getT(this.parameters.samples) > 0) {
 				windex = 0;
-				if (this.fullPredictionMode) {
-					int weightExponentOffset = this.getIntraBandWeightExponentOffset(currCoord.band);
+				if (this.parameters.fullPredictionMode) {
+					int weightExponentOffset = this.parameters.getIntraBandWeightExponentOffset(currCoord.band);
 					//north, west, northwest
-					localWeights[0] = this.updateWeight(localWeights[0], doubleResolutionPredictionError, northDiff, weightUpdateScalingExponent, weightExponentOffset, currCoord.getT(samples));
-					localWeights[1] = this.updateWeight(localWeights[1], doubleResolutionPredictionError, westDiff, weightUpdateScalingExponent, weightExponentOffset, currCoord.getT(samples));
-					localWeights[2] = this.updateWeight(localWeights[2], doubleResolutionPredictionError, northWestDiff, weightUpdateScalingExponent, weightExponentOffset, currCoord.getT(samples));
+					localWeights[0] = this.updateWeight(localWeights[0], doubleResolutionPredictionError, northDiff, weightUpdateScalingExponent, weightExponentOffset, currCoord.getT(this.parameters.samples));
+					localWeights[1] = this.updateWeight(localWeights[1], doubleResolutionPredictionError, westDiff, weightUpdateScalingExponent, weightExponentOffset, currCoord.getT(this.parameters.samples));
+					localWeights[2] = this.updateWeight(localWeights[2], doubleResolutionPredictionError, northWestDiff, weightUpdateScalingExponent, weightExponentOffset, currCoord.getT(this.parameters.samples));
 					cwl.add(localWeights[0]);
 					cwl.add(localWeights[1]);
 					cwl.add(localWeights[2]);
 					windex = 3;
 				}
-				for (int p = 0; p < this.predictionBands; p++) {
-					localWeights[windex+p] = this.updateWeight(localWeights[windex+p], doubleResolutionPredictionError, diffs[p], weightUpdateScalingExponent, getInterBandWeightExponentOffsets(currCoord.band, p), currCoord.getT(samples));
+				for (int p = 0; p < this.parameters.predictionBands; p++) {
+					localWeights[windex+p] = this.updateWeight(localWeights[windex+p], doubleResolutionPredictionError, diffs[p], weightUpdateScalingExponent, this.parameters.getInterBandWeightExponentOffsets(currCoord.band, p), currCoord.getT(this.parameters.samples));
 					if (currCoord.band - p > 0) { 
 						//add only the ones we need to be checking, the others are cancelled by differences being zero
 						cwl.add(localWeights[windex+p]);
@@ -380,12 +378,12 @@ public class SegmentedCompressor extends Compressor {
 				}
 			}
 			//save weights if needed
-			if (!currCoord.lastT(samples, lines)) {
+			if (!currCoord.lastT(this.parameters.samples, this.parameters.lines)) {
 				weightQueue.add(wcp);
 			}
 			
 			//MAPPED QUANTIZER INDEX 4.11
-			long theta = this.calcTheta(currCoord.getT(samples), predictedSampleValue, maxErrVal);
+			long theta = this.calcTheta(currCoord.getT(this.parameters.samples), predictedSampleValue, maxErrVal);
 			long mappedQuantizerIndex = this.calcMappedQuantizerIndex(quantizerIndex, theta, doubleResolutionPredSampleValue);
 			
 			//CALCULATE SAMPLE REPRESENTATIVE AND NEXT DIFFERENCE
@@ -404,28 +402,28 @@ public class SegmentedCompressor extends Compressor {
 			 */			
 			//where does my neighborhood go??
 			//west, north, northwest, northeast, current
-			if (!currCoord.lastLine(lines) || !currCoord.lastSample(samples)) {
+			if (!currCoord.lastLine(this.parameters.lines) || !currCoord.lastSample(this.parameters.samples)) {
 				westQueue.add(new Pair<>(currRep, currCoord));
 			} 
 			
-			if (!currCoord.lastLine(lines) && !currCoord.firstSample()) {
+			if (!currCoord.lastLine(this.parameters.lines) && !currCoord.firstSample()) {
 				northEastQueue.add(new Pair<>(westRep, westCoord));
 			} else if (!currCoord.firstLine() && currCoord.firstSample()) {
 				northEastQueue.add(new Pair<>(nextWestRep, nextWestCoord)); //convert last west into northeast
 			}
 			
-			if (!currCoord.lastLine(lines) && currCoord.lastSample(samples)) {
+			if (!currCoord.lastLine(this.parameters.lines) && currCoord.lastSample(this.parameters.samples)) {
 				northQueue.add(new Pair<>(nextNorthEastRep, nextNorthEastCoord)); //convert first northeast into north
-			} else if (!currCoord.firstLine() && !currCoord.lastSample(samples)) {
+			} else if (!currCoord.firstLine() && !currCoord.lastSample(this.parameters.samples)) {
 				northQueue.add(new Pair<>(northEastRep, northEastCoord));
 			}
 			
-			if (!currCoord.firstLine() && !currCoord.lastSample(samples)) {
+			if (!currCoord.firstLine() && !currCoord.lastSample(this.parameters.samples)) {
 				northWestQueue.add(new Pair<>(northRep, northCoord));
 			}
 			
 			
-			if (!currCoord.lastBand(bands)) {
+			if (!currCoord.lastBand(this.parameters.bands)) {
 				for (int i = diffs.length-1; i > 0; i--) {
 					diffs[i] = diffs[i-1];
 				}
@@ -434,7 +432,7 @@ public class SegmentedCompressor extends Compressor {
 				diffQueue.add(new Pair<long[], Coordinate>(diffs, currCoord));
 			}
 			
-			if (currCoord.firstLine() && currCoord.firstSample() && !currCoord.lastBand(bands) && this.predictionBands > 0) {
+			if (currCoord.firstLine() && currCoord.firstSample() && !currCoord.lastBand(this.parameters.bands) && this.parameters.predictionBands > 0) {
 				firstPixelQueueDRPSV.add(currSample);
 			}
 			
@@ -473,10 +471,10 @@ public class SegmentedCompressor extends Compressor {
 											"\n\tCQ: " + coordQueue.size()+
 											"\n\tFP: " + firstPixelQueueDRPSV.size());
 		
-		for (int i = 0; i < lines; i++) {
-			for (int j = 0; j < samples; j++) {
-				for (int k = 0; k < bands; k++) {
-					this.entropyCoder.code((int) mqiarr[k][i][j], i*samples+j, k, bos);
+		for (int i = 0; i < this.parameters.lines; i++) {
+			for (int j = 0; j < this.parameters.samples; j++) {
+				for (int k = 0; k < this.parameters.bands; k++) {
+					this.entropyCoder.code((int) mqiarr[k][i][j], i*this.parameters.samples+j, k, bos);
 					
 					
 					su.cldsmpl.sample(cldarr[k][i][j]);

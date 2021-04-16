@@ -15,10 +15,12 @@ import ccsds123.cli.CCSDSCLI;
 import ccsds123.cli.InputArguments;
 import ccsds123.core.SegmentedCompressor;
 import ccsds123.core.Compressor;
+import ccsds123.core.CompressorParameters;
 import ccsds123.core.Constants;
 import ccsds123.core.EntropyCoder;
 import ccsds123.core.HybridEntropyCoder;
 import ccsds123.core.SampleAdaptiveEntropyCoder;
+import ccsds123.core.SamplingUnit;
 
 
 public class Main {
@@ -34,21 +36,21 @@ public class Main {
 	        //parse the command line arguments
 	        CommandLine line = parser.parse( CCSDSCLI.getOptions(), args );
 	        InputArguments iArgs = InputArguments.parseFrom(line);
-	        EntropyCoder ec;
-	        if (iArgs.use_hybrid)
-	        	ec = new HybridEntropyCoder();
-	        else
-	        	ec = new SampleAdaptiveEntropyCoder();
-	        
-	        Compressor c = new SegmentedCompressor(ec);
-	        //Compressor c = new DirectCompressor();
-	        
-	        //set compressor parameters
-	        int[] absErr = new int[1];
+	        //parse compressor parameters and create compression/decompression stuff
+	        SamplingUnit su = new SamplingUnit();
+	        CompressorParameters cp = new CompressorParameters();
+    		int[] absErr = new int[1];
 	        int[] relErr = new int[1];
 	        absErr[0] = iArgs.max_abs_err;
 	        relErr[0] = iArgs.max_rel_err;
-	        c.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, absErr, relErr, iArgs.use_max_abs_err, iArgs.use_max_rel_err);
+	        cp.setDefaults();
+	        cp.setErrors(Constants.DEFAULT_ABSOLUTE_ERROR_LIMIT_BIT_DEPTH, Constants.DEFAULT_RELATIVE_ERROR_LIMIT_BIT_DEPTH, absErr, relErr, iArgs.use_max_abs_err, iArgs.use_max_rel_err);
+    		EntropyCoder ec;
+	        if (iArgs.use_hybrid)
+	        	ec = new HybridEntropyCoder(su, cp);
+	        else
+	        	ec = new SampleAdaptiveEntropyCoder(su, cp);
+	        Compressor c = new SegmentedCompressor(ec, cp, su);
 	        
 	        
 	        //go through options
@@ -59,9 +61,12 @@ public class Main {
 	        		//read input image
 	        		HyperspectralImage hi = HyperspectralImageReader.read(iArgs.input, iArgs.inputHeader, true);	   
 	        		HyperspectralImageData hid = hi.getData();
+	        		//preprocess input image
 	        		if (iArgs.useCustomSize)
 	        			hid = hid.resize(iArgs.bands, iArgs.lines, iArgs.samples);
-	        		
+	        		//prepare for compression
+	        		cp.setSize(hid.getNumberOfSamples(), hid.getNumberOfLines(), hid.getNumberOfBands());
+
 	        		if (iArgs.compress)
 	        			CCSDS.compress(c, hid, iArgs.output, iArgs);
 	        		else
@@ -71,6 +76,7 @@ public class Main {
 				}
 	        } else if (iArgs.decompress) {
 	        	try {
+	        		cp.setSize(iArgs.samples, iArgs.lines, iArgs.bands);
 					CCSDS.decompress(c, iArgs);
 				} catch (IOException e) {
 					e.printStackTrace();

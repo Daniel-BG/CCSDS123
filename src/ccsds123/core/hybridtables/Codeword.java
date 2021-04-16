@@ -11,20 +11,26 @@ public class Codeword{
 	private int value = 0;	//value of the coderword (up to 64 bits)
 	private int bits = 0; 	//amount of bits used by the codeword
 	
-	public Codeword (int bits, int value) {
+	private void set(int bits, int value) {
 		if (bits > 31)
 			throw new IllegalArgumentException("Too long of a codeword");
-	
+		if (bits == 0)
+			throw new IllegalArgumentException("Cannot have 0 bits for a codeword");
+		
 		this.bits = bits;
 		this.value = value;
+	}
+	
+	public Codeword (int bits, int value) {
+		this.set(bits, value);
+		
 	}
 
 	public Codeword(String code) {
 		Pattern p = Pattern.compile("(\\d+)'h([0-9a-fA-F]+)");
 		Matcher m = p.matcher(code);
 		if (m.matches()) {
-			this.bits = Integer.parseInt(m.group(1));
-			this.value = Integer.parseInt(m.group(2), 16);
+			this.set(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2), 16));
 		} else {
 			throw new IllegalArgumentException("Didnt match: " + code);
 		}

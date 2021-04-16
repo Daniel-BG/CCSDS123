@@ -142,7 +142,7 @@ public class CodeCreator {
 			if (tq.isTerminal())
 				throw new IllegalStateException("We are not building terminals here, tables need to always have children");
 			long code = tq.getValue().getValue();
-			code |= ((long) tq.getValue().getBits()) << entryLengthBits;
+			code |= ((long) tq.getValue().getBits()) << entryBits;
 			code |= CODE_FLUSH << (totalBitsPerEntry - 4);
 			BigInteger base = BigInteger.valueOf(code);
 			
@@ -155,7 +155,7 @@ public class CodeCreator {
 				} else if (child.isTerminal()) {
 					//add terminal thingy to the table
 					nextCode = child.getValue().getValue();
-					nextCode |= ((long) child.getValue().getBits()) << entryLengthBits;
+					nextCode |= ((long) child.getValue().getBits()) << entryBits;
 					nextCode |= CODE_TERMINAL << (totalBitsPerEntry - 4);
 				} else {
 					tablequeue.add(child);

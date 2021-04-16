@@ -15,9 +15,6 @@ import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
 import ccsds123.cli.InputArguments;
 import ccsds123.core.Compressor;
-import ccsds123.core.Constants;
-import ccsds123.core.DirectCompressor;
-import ccsds123.core.SamplingUnit;
 
 public class CCSDS {
 	
@@ -41,7 +38,7 @@ public class CCSDS {
 			}
 		}
 		
-		c.compress(image, imgBands, imgLines, imgSamples, bos);
+		c.compress(image, bos);
 		bos.paddingFlush();
 		
 		if (args.showCompressionStats) {
@@ -57,7 +54,7 @@ public class CCSDS {
 		//Compressor c = new Compressor();		
 		BitInputStream bis = new BitInputStream(new FileInputStream(new File(args.input)));
 		
-		int[][][] image = c.decompress(args.bands, args.lines, args.samples, bis);
+		int[][][] image = c.decompress(bis);
 		
 		HyperspectralImageData hid = new HyperspectralImageIntegerData(
 				new ImageDataType(args.bitDepth, args.signed), args.bands, args.lines, args.samples);
