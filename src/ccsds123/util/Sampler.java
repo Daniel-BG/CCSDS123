@@ -5,11 +5,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.LinkedList;
+
+import ccsds123.core.Coordinate;
 
 public class Sampler <T> {
 	
-	private static final boolean DISABLE_CHECKING = false;
+	private static final boolean DISABLE_CHECKING = true;
 	private static final boolean DISABLE_SAMPLING = false;
 	
 	private Deque<T> samplingDQ, checkingDQ;
@@ -58,12 +61,14 @@ public class Sampler <T> {
 		return this.doUnSample(t, true);
 	}
 	
-	public T burnSample() {
-		return checkingDQ.removeFirst();
+	public void burnSample() {
+		if (!DISABLE_CHECKING)
+			checkingDQ.removeFirst();
 	}
 	
-	public T reverseBurnSample() {
-		return checkingDQ.removeLast();
+	public void reverseBurnSample() {
+		if (!DISABLE_CHECKING)
+			checkingDQ.removeLast();
 	}
 
 	public void export() throws IOException {
@@ -80,8 +85,36 @@ public class Sampler <T> {
 		bw.close();
 	}
 	
+	public void exportDiagonal(int bands, int lines, int samples) throws IOException {
+		if (DISABLE_SAMPLING)
+			return;
+		FileOutputStream fos = new FileOutputStream(Sampler.samplePath + this.filename + Sampler.extension + Sampler.diagonalMarker, false);
+		OutputStreamWriter osw = new OutputStreamWriter(fos);
+		BufferedWriter bw = new BufferedWriter(osw);
+		
+		@SuppressWarnings("unchecked")
+		T[][][] arr = (T[][][]) new Object[bands][lines][samples];
+		Iterator<T> tIter = samplingDQ.iterator();
+		
+		for (int j = 0; j < lines; j++) {
+			for (int k = 0; k < samples; k++) {
+				for (int i = 0; i < bands; i++) {
+					arr[i][j][k] = tIter.next();
+				}
+			}
+		}
+		Iterator<Coordinate> coordIter = Coordinate.getDiagonalIterator(bands, lines, samples);
+		while (coordIter.hasNext()) {
+			Coordinate coord = coordIter.next();
+			bw.write(arr[coord.band][coord.line][coord.sample].toString());
+			bw.newLine();
+		}	
+		bw.close();
+	}
+	
 	private static String samplePath;
 	private static String extension;
+	private static String diagonalMarker = ".diag";
 	
 	public static void setSamplePath(String samplePath) {
 		Sampler.samplePath = samplePath;

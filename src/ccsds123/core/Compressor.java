@@ -42,7 +42,7 @@ public abstract class Compressor {
 				
 		doCompress(block, bos);
 		
-		this.su.export();
+		this.su.export(true, this.parameters.bands, this.parameters.lines, this.parameters.samples);
 	}
 	
 	public abstract void doCompress(int [][][] block, BitOutputStream bos) throws IOException;

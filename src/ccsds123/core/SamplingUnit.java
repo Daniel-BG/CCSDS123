@@ -34,7 +34,7 @@ public class SamplingUnit {
 	protected Sampler<Long> cntsmpl 		= new Sampler<Long>("c_cnt");
 	
 	
-	public void export() throws IOException {
+	public void export(boolean diagonal, int bands, int lines, int samples) throws IOException {
 		ssmpl.export();
 		drpsvsmpl.export();
 		psvsmpl.export();
@@ -56,6 +56,31 @@ public class SamplingUnit {
 		srsmpl.export();
 		tsmpl.export();
 		mqismpl.export();
+		
+		if (diagonal) {
+			ssmpl.exportDiagonal(bands, lines, samples);
+			drpsvsmpl.exportDiagonal(bands, lines, samples);
+			psvsmpl.exportDiagonal(bands, lines, samples);
+			prsmpl.exportDiagonal(bands, lines, samples);
+			wsmpl.exportDiagonal(bands, lines, samples);
+			wusesmpl.exportDiagonal(bands, lines, samples);
+			drpesmpl.exportDiagonal(bands, lines, samples);
+			drsrsmpl.exportDiagonal(bands, lines, samples);
+			cqbcsmpl.exportDiagonal(bands, lines, samples);
+			mevsmpl.exportDiagonal(bands, lines, samples);
+			hrpsvsmpl.exportDiagonal(bands, lines, samples);
+			pcdsmpl.exportDiagonal(bands, lines, samples);
+			cldsmpl.exportDiagonal(bands, lines, samples);
+			nwdsmpl.exportDiagonal(bands, lines, samples);
+			wdsmpl.exportDiagonal(bands, lines, samples);
+			ndsmpl.exportDiagonal(bands, lines, samples);
+			lssmpl.exportDiagonal(bands, lines, samples);
+			qismpl.exportDiagonal(bands, lines, samples);
+			srsmpl.exportDiagonal(bands, lines, samples);
+			tsmpl.exportDiagonal(bands, lines, samples);
+			mqismpl.exportDiagonal(bands, lines, samples);
+		}
+		
 		
 		accsmpl.export();
 		uicismpl.export();

@@ -1,6 +1,7 @@
 package ccsds123.core;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -22,58 +23,7 @@ public class SegmentedCompressor extends Compressor {
 	}
 	
 	
-	private class Coordinate {
-		int band, line, sample;
-		
-		public Coordinate(int band, int line, int sample) {
-			this.band = band;
-			this.line = line;
-			this.sample = sample;
-		}
-		
-		public boolean firstLine() {
-			return this.line == 0;
-		}
-		
-		public boolean firstSample() {
-			return this.sample == 0;
-		}
-		
-		public boolean firstBand() {
-			return this.band == 0;
-		}
-		
-		public boolean firstT() {
-			return this.firstLine() && this.firstSample();
-		}
-		
-		public boolean lastT(int samples, int lines) {
-			return this.lastLine(lines) && this.lastSample(samples);
-		}
-		
-		public boolean lastLine(int lines) {
-			return this.line == lines - 1;
-		}
-		
-		public boolean lastSample(int samples) {
-			return this.sample == samples - 1;
-		}
-		
-		public boolean lastBand(int bands) {
-			return this.band == bands - 1;
-		}
-		
-		@Override
-		public String toString() {
-			return "Z: " + band + " Y: " + line + " X: " + sample;
-		}
 
-		public int getT(int samples) {
-			return this.line * samples + this.sample;
-		}
-
-
-	}
 	
 	
 	Queue<Coordinate> coordQueue;
@@ -86,30 +36,12 @@ public class SegmentedCompressor extends Compressor {
 		sampleQueue = new LinkedList<Integer>();
 		this.entropyCoder.reset();
 		//add all coords to coordQueue following a diagonal pattern
-		int maxT = this.parameters.lines*this.parameters.samples-1;
-		int topZ = 1;
-		int bottomZ = 0;
-		int tStart = 0;
-		while(topZ != bottomZ) {
-			for (int i = topZ-1; i >= bottomZ; i--) {
-				int z = i;
-				int t = tStart + (topZ - 1) - i;
-				int x = t%this.parameters.samples;
-				int y = t/this.parameters.samples;
-				coordQueue.add(new Coordinate(z, y, x));
-				sampleQueue.add(block[z][y][x]);
-				if (t == maxT) {
-					bottomZ++;
-					break;
-				}
-			}
-			if (topZ < this.parameters.bands) {
-				topZ++;
-			} else {
-				tStart++;
-			}
+		Iterator<Coordinate> coordIter = Coordinate.getDiagonalIterator(this.parameters.bands, this.parameters.lines, this.parameters.samples);
+		while (coordIter.hasNext()) {
+			Coordinate currCoord = coordIter.next();
+			coordQueue.add(currCoord);
+			sampleQueue.add(block[currCoord.band][currCoord.line][currCoord.sample]);
 		}
-		
 		//initializations
 		
 		
@@ -470,11 +402,13 @@ public class SegmentedCompressor extends Compressor {
 											"\n\tSQ: " + sampleQueue.size() + 
 											"\n\tCQ: " + coordQueue.size()+
 											"\n\tFP: " + firstPixelQueueDRPSV.size());
+
 		
 		for (int i = 0; i < this.parameters.lines; i++) {
 			for (int j = 0; j < this.parameters.samples; j++) {
 				for (int k = 0; k < this.parameters.bands; k++) {
 					this.entropyCoder.code((int) mqiarr[k][i][j], i*this.parameters.samples+j, k, bos);
+
 					
 					
 					su.cldsmpl.sample(cldarr[k][i][j]);
@@ -507,10 +441,6 @@ public class SegmentedCompressor extends Compressor {
 				}
 			}
 		}
-		
-		
-		
-		
 	}
 	
 	
@@ -530,52 +460,3 @@ public class SegmentedCompressor extends Compressor {
 	}
 
 }
-
-
-
-
-/*
-
-if (currCoord.firstLine()) {
-if (currCoord.firstSample()) {
-	//westQueue.add(new Pair<>(currRep, currCoord));
-} else if (!currCoord.lastSample(samples)) {
-	//northEastQueue.add(new Pair<>(westRep, westCoord));
-	//westQueue.add(new Pair<>(currRep, currCoord));
-} else {
-	//northEastQueue.add(new Pair<>(westRep, westCoord));
-	//northQueue.add(new Pair<>(nextNorthEastRep, nextNorthEastCoord)); //convert first northeast into north
-	//westQueue.add(new Pair<>(currRep, currCoord));
-}
-} else if (!currCoord.lastLine(lines)) {
-if (currCoord.firstSample()) {
-	//northEastQueue.add(new Pair<>(nextWestRep, nextWestCoord)); //convert last west into northeast 
-	//northQueue.add(new Pair<>(northEastRep, northEastCoord));
-	//northWestQueue.add(new Pair<>(northRep, northCoord));
-	//westQueue.add(new Pair<>(currRep, currCoord));
-} else if (!currCoord.lastSample(samples)) {
-	//northEastQueue.add(new Pair<>(westRep, westCoord));
-	//northQueue.add(new Pair<>(northEastRep, northEastCoord));
-	//northWestQueue.add(new Pair<>(northRep, northCoord));
-	//westQueue.add(new Pair<>(currRep, currCoord));
-} else {
-	//northEastQueue.add(new Pair<>(westRep, westCoord));
-	//northQueue.add(new Pair<>(nextNorthEastRep, nextNorthEastCoord)); //convert first northeast into north
-	//westQueue.add(new Pair<>(currRep, currCoord));
-}
-} else {
-if (currCoord.firstSample()) {
-	//northEastQueue.add(new Pair<>(nextWestRep, nextWestCoord)); //convert last west into northeast 
-	//northQueue.add(new Pair<>(northEastRep, northEastCoord));
-	//northWestQueue.add(new Pair<>(northRep, northCoord));
-	//westQueue.add(new Pair<>(currRep, currCoord));
-} else if (!currCoord.lastSample(samples)) {
-	//northQueue.add(new Pair<>(northEastRep, northEastCoord));
-	//northWestQueue.add(new Pair<>(northRep, northCoord));
-	//westQueue.add(new Pair<>(currRep, currCoord));
-} else {
-	
-}
-}
-
-*/
