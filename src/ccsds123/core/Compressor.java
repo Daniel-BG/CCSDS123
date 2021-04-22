@@ -101,11 +101,31 @@ public abstract class Compressor {
 	}
 	
 	protected long calcDoubleResolutionSampleRepresentative(int b, long clippedQuantizerBinCenter, long quantizerIndex, long maxErrVal, long highResolutionPredSampleValue) { //EQ 47
+		/*
+		 	long fm = (1 << this.parameters.getResolution(b)) - this.parameters.getDamping(b);
+			long sm = (clippedQuantizerBinCenter << this.parameters.omega) - ((Utils.signum(quantizerIndex)*maxErrVal*this.parameters.getOffset(b)) << (this.parameters.omega - this.parameters.getResolution(b)));
+			long add = this.parameters.getDamping(b)*highResolutionPredSampleValue - (this.parameters.getDamping(b) << (this.parameters.omega + 1)); 
+			long sby = this.parameters.omega + this.parameters.getResolution(b) + 1; 
+			return (((fm * sm) << 2) + add) >> sby;
+		 */
 		long fm = (1 << this.parameters.getResolution(b)) - this.parameters.getDamping(b);
-		long sm = (clippedQuantizerBinCenter << this.parameters.omega) - ((Utils.signum(quantizerIndex)*maxErrVal*this.parameters.getOffset(b)) << (this.parameters.omega - this.parameters.getResolution(b)));
-		long add = this.parameters.getDamping(b)*highResolutionPredSampleValue - (this.parameters.getDamping(b) << (this.parameters.omega + 1)); 
-		long sby = this.parameters.omega + this.parameters.getResolution(b) + 1; 
-		return (((fm * sm) << 2) + add) >> sby;
+		long omegaMinusResolution = (this.parameters.omega - this.parameters.getResolution(b));
+		long cqbcShiftedByOmega = (clippedQuantizerBinCenter << this.parameters.omega);
+		long dampingShiftedByOmegaP1 = (this.parameters.getDamping(b) << (this.parameters.omega + 1));
+		long omegaPlusResP1 = this.parameters.omega + this.parameters.getResolution(b) + 1;
+		
+		long mevTimesOffset = maxErrVal*this.parameters.getOffset(b);
+		long hrpsvTimesDamping = this.parameters.getDamping(b)*highResolutionPredSampleValue;
+		long mevQiSigned = Utils.signum(quantizerIndex)*mevTimesOffset;
+		long mevQiShifted = ((mevQiSigned) << omegaMinusResolution);
+		
+		long sm = cqbcShiftedByOmega - mevQiShifted;
+		long fmTimesSmSb2 = (fm * sm) << 2;
+		
+		long finalUnshifted = fmTimesSmSb2 +  hrpsvTimesDamping - dampingShiftedByOmegaP1;
+		
+		long output = finalUnshifted >> omegaPlusResP1;
+		return output;
 	}
 	
 	protected long calcWeightUpdateScalingExponent(int t, int samples) { //EQ 50

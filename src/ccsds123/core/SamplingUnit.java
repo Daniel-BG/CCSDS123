@@ -6,6 +6,12 @@ import ccsds123.util.Sampler;
 
 public class SamplingUnit {
 	//predictor samplers
+	
+	protected Sampler<Long> wrsmpl 			= new Sampler<Long>("c_wr");
+	protected Sampler<Long> nrsmpl 			= new Sampler<Long>("c_nr");
+	protected Sampler<Long> nwrsmpl 		= new Sampler<Long>("c_nwr");
+	protected Sampler<Long> nersmpl 		= new Sampler<Long>("c_ner");
+
 	protected Sampler<Integer> ssmpl 		= new Sampler<Integer>("c_s");
 	protected Sampler<Long> drpsvsmpl 		= new Sampler<Long>("c_drpsv");
 	protected Sampler<Long> psvsmpl	 		= new Sampler<Long>("c_psv");
@@ -56,6 +62,10 @@ public class SamplingUnit {
 		srsmpl.export();
 		tsmpl.export();
 		mqismpl.export();
+		wrsmpl.export();
+		nrsmpl.export();
+		nwrsmpl.export();
+		nersmpl.export();
 		
 		if (diagonal) {
 			ssmpl.exportDiagonal(bands, lines, samples);
@@ -79,6 +89,10 @@ public class SamplingUnit {
 			srsmpl.exportDiagonal(bands, lines, samples);
 			tsmpl.exportDiagonal(bands, lines, samples);
 			mqismpl.exportDiagonal(bands, lines, samples);
+			wrsmpl.exportDiagonal(bands, lines, samples);
+			nrsmpl.exportDiagonal(bands, lines, samples);
+			nwrsmpl.exportDiagonal(bands, lines, samples);
+			nersmpl.exportDiagonal(bands, lines, samples);
 		}
 		
 		

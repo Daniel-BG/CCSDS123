@@ -76,6 +76,10 @@ public class SegmentedCompressor extends Compressor {
 		long[][][] srarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		long[][][] tarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		long[][][] mqiarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] wrarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] nwrarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] nerarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] nrarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		
 		
 		int [][] initialWeights = this.parameters.getInitialWeights();
@@ -389,6 +393,10 @@ public class SegmentedCompressor extends Compressor {
 			cldarr[currCoord.band][currCoord.line][currCoord.sample] = currDif;
 			wusearr[currCoord.band][currCoord.line][currCoord.sample] = weightUpdateScalingExponent;
 			warr[currCoord.band][currCoord.line][currCoord.sample] = cwl;
+			wrarr[currCoord.band][currCoord.line][currCoord.sample] = westRep;
+			nwrarr[currCoord.band][currCoord.line][currCoord.sample] = northWestRep;
+			nerarr[currCoord.band][currCoord.line][currCoord.sample] = northEastRep;
+			nrarr[currCoord.band][currCoord.line][currCoord.sample] = northRep;
 			//SEND TO ENCODER
 			mqiarr[currCoord.band][currCoord.line][currCoord.sample] = mappedQuantizerIndex;
 		}
@@ -409,6 +417,10 @@ public class SegmentedCompressor extends Compressor {
 				for (int k = 0; k < this.parameters.bands; k++) {
 					this.entropyCoder.code((int) mqiarr[k][i][j], i*this.parameters.samples+j, k, bos);
 
+					su.wrsmpl.sample(wrarr[k][i][j]);
+					su.nrsmpl.sample(nrarr[k][i][j]);
+					su.nwrsmpl.sample(nwrarr[k][i][j]);
+					su.nersmpl.sample(nerarr[k][i][j]);
 					
 					
 					su.cldsmpl.sample(cldarr[k][i][j]);
