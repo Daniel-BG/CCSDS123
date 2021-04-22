@@ -94,26 +94,17 @@ public class SegmentedCompressor extends Compressor {
 			int currSample = sampleQueue.remove();
 			
 			////NEIGHBORHOOD BEGIN 4.1
-			Long westRep, northWestRep, northRep, northEastRep, nextNorthEastRep, nextWestRep;
+			Long westRep, northWestRep, northRep, northEastRep;
 			Coordinate dummy = new Coordinate(-3, -3, -3);
-			Coordinate westCoord = dummy, northWestCoord = dummy, northCoord = dummy, northEastCoord = dummy, nextNorthEastCoord = dummy, nextWestCoord = dummy;
+			Coordinate westCoord = dummy, northWestCoord = dummy, northCoord = dummy, northEastCoord = dummy;
 			Pair<Long, Coordinate> qData;
 			//west sample
-			if (currCoord.firstSample()) {
-				if (currCoord.firstLine()) {
-					westRep = 0l;
-					nextWestRep = 0l;
-				} else {
-					westRep = 0l;
-					qData = westQueue.remove();
-					nextWestRep = qData.first(); //use to transform last west sample into northeast
-					nextWestCoord = qData.second();
-				}
-			} else { 
+			if (currCoord.firstSample() && currCoord.firstLine()) {
+				westRep = 0l;
+			} else {
 				qData = westQueue.remove();
-				westRep = qData.first();
+				westRep = qData.first(); //use to transform last west sample into northeast
 				westCoord = qData.second();
-				nextWestRep = 0l;
 			}
 			//north sample
 			if (currCoord.firstLine()) {
@@ -124,20 +115,9 @@ public class SegmentedCompressor extends Compressor {
 				northCoord = qData.second();
 			}
 			//north east sample
-			if (currCoord.firstLine() && !currCoord.lastSample(this.parameters.samples)) {
+			if (currCoord.firstLine() && !currCoord.lastSample(this.parameters.samples) || currCoord.lastSample(this.parameters.samples) && currCoord.lastLine(this.parameters.lines)) {
 				northEastRep = 0l;
-				nextNorthEastRep = 0l;
-			} else if (currCoord.lastSample(this.parameters.samples)){
-				northEastRep = 0l;
-				if (currCoord.lastLine(this.parameters.lines)) {
-					nextNorthEastRep = 0l;
-				} else {
-					qData = northEastQueue.remove();
-					nextNorthEastRep = qData.first();
-					nextNorthEastCoord = qData.second();
-				}
 			} else {
-				nextNorthEastRep = 0l;
 				qData = northEastQueue.remove();
 				northEastRep = qData.first();
 				northEastCoord = qData.second();
@@ -342,17 +322,13 @@ public class SegmentedCompressor extends Compressor {
 				westQueue.add(new Pair<>(currRep, currCoord));
 			} 
 			
-			if (!currCoord.lastLine(this.parameters.lines) && !currCoord.firstSample()) {
+			if (!currCoord.lastLine(this.parameters.lines) && !currCoord.firstSample() || !currCoord.firstLine() && currCoord.firstSample()) {
 				northEastQueue.add(new Pair<>(westRep, westCoord));
-			} else if (!currCoord.firstLine() && currCoord.firstSample()) {
-				northEastQueue.add(new Pair<>(nextWestRep, nextWestCoord)); //convert last west into northeast
 			}
 			
-			if (!currCoord.lastLine(this.parameters.lines) && currCoord.lastSample(this.parameters.samples)) {
-				northQueue.add(new Pair<>(nextNorthEastRep, nextNorthEastCoord)); //convert first northeast into north
-			} else if (!currCoord.firstLine() && !currCoord.lastSample(this.parameters.samples)) {
-				northQueue.add(new Pair<>(northEastRep, northEastCoord));
-			}
+			if (!currCoord.lastLine(this.parameters.lines) && currCoord.lastSample(this.parameters.samples) || !currCoord.firstLine() && !currCoord.lastSample(this.parameters.samples)) {
+				northQueue.add(new Pair<>(northEastRep, northEastCoord)); //convert first northeast into north
+			} 
 			
 			if (!currCoord.firstLine() && !currCoord.lastSample(this.parameters.samples)) {
 				northWestQueue.add(new Pair<>(northRep, northCoord));
