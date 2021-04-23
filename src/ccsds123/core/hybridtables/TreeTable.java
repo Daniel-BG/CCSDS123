@@ -153,7 +153,7 @@ public class TreeTable<TERMINAL_T> implements Iterable<TreeTable<TERMINAL_T>>{
 	}
 	
 	//to build the cool tables
-	public int id = 0;
+	public int id = -1;
 	
 
 }

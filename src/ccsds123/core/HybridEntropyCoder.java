@@ -46,8 +46,8 @@ public class HybridEntropyCoder extends EntropyCoder {
 		int k = 1;
 		while (counter*(1l << (k+1+2)) <= accumulator + ((49*counter) >> 5))
 			k++;
-		if (k < 2)
-			throw new IllegalStateException("Should not be 1, check eq 66");
+		//if (k < 2)
+		//	throw new IllegalStateException("Should not be 1, check eq 66");
 		
 		return Math.min(k, Math.max(this.cp.depth-2, 2));
 	}
@@ -82,45 +82,76 @@ public class HybridEntropyCoder extends EntropyCoder {
 			accT = this.accumulator[b];
 		} else {
 			//output last acc bit if we are losing it
+			int flushBit = (int) (this.accumulator[b] & 0x1);
 			if (counterT == ((1l<<this.cp.gammaStar) - 1)) {
-				Bit bit = this.accumulator[b] % 2 == 0 ? Bit.BIT_ZERO : Bit.BIT_ONE;
-				bos.writeBit(bit);
-				debug(bit.toInteger(), this.cp.depth, "Write excess bit from acc: " + Long.toHexString(this.accumulator[b]));
+				flushBit |= 0x2;
 			}
+			
 			//update accumulator for current iteration
 			this.updateAcc(b, mappedQuantizerIndex, (int) counterT);
 			accT = this.accumulator[b];
 
+			boolean isHighEntropy = accT<<14 >= (long) CodeCreator.THRESHOLD[0] * counterTp1;
+			int k = this.getK(counterTp1, accT);
+			int codeIndex = this.getCodeIndex(accT, counterTp1);
+			int inputSymbol = mappedQuantizerIndex <= CodeCreator.INPUTSYMBOLLIMIT[codeIndex] ? mappedQuantizerIndex : CodeCreator.CODE_X_VAL;
+			int codeQuant = mappedQuantizerIndex - CodeCreator.INPUTSYMBOLLIMIT[codeIndex] - 1;
+			TreeTable<Codeword> currentTable = this.activeTables[codeIndex];
+			TreeTable<Codeword> entry = currentTable.getChild(inputSymbol);
+			boolean isTree = entry.isTree();
+			TreeTable<Codeword> nextTable;
+			nextTable = isTree ? entry : this.baseTables[codeIndex];
+			Codeword cw = entry.getValue();
+			int nextTableId = nextTable.id;
+			int cwVal = cw.getValue();
+			int cwBits = cw.getBits();
+			if (isTree) {
+				cwVal = nextTable.id;				//unused
+				cwBits = 0;							//unused
+			}
+
+			
+			
+			//output last acc bit if we are losing it
+			if ((flushBit & 0x2) != 0) {
+				Bit bit = flushBit % 2 == 0 ? Bit.BIT_ZERO : Bit.BIT_ONE;
+				bos.writeBit(bit);
+				debug(bit.toInteger(), this.cp.depth, "Write excess bit from acc: " + Long.toHexString(this.accumulator[b]));
+			}
 			
 			//perform high or low entropy coding
-			if (accT<<14 >= (long) CodeCreator.THRESHOLD[0] * counterTp1) {
+			if (isHighEntropy) {
 				//high entropy
-				int k = this.getK(counterTp1, accT);
 				debug(mappedQuantizerIndex, k, "Write High entropy MQI + (" + accT + "," + counterTp1 + ")");
 				this.reverseLengthLimitedGolombPowerOfTwoCode(mappedQuantizerIndex, k, bos);
 			} else {
 				//low entropy
-				int codeIndex = this.getCodeIndex(accT, counterTp1);
-				int inputSymbol = mappedQuantizerIndex <= CodeCreator.INPUTSYMBOLLIMIT[codeIndex] ? mappedQuantizerIndex : CodeCreator.CODE_X_VAL;
 				if (inputSymbol == CodeCreator.CODE_X_VAL) {
-					int codeQuant = mappedQuantizerIndex - CodeCreator.INPUTSYMBOLLIMIT[codeIndex] - 1;
 					debug(codeQuant, 0, "Write low entropy excess");
 					this.reverseLengthLimitedGolombPowerOfTwoCode(codeQuant, 0, bos);
 				}
-				TreeTable<Codeword> currentTable = this.activeTables[codeIndex];
-				TreeTable<Codeword> entry = currentTable.getChild(inputSymbol); 
-				if (entry.isTree()) { //go to next node
-					this.activeTables[codeIndex] = entry; 
-				} else {	//output final code and reset table
-					Codeword cw = entry.getValue();
-					debug(cw.getValue(), cw.getBits(), "Write table codeword");
-					bos.writeBits(cw.getValue(), cw.getBits(), BitStreamConstants.ORDERING_LEFTMOST_FIRST);
-					this.activeTables[codeIndex] = this.baseTables[codeIndex];
+				
+				if (!isTree) { 	//output final code and reset table
+					debug(cwVal, cwBits, "Write table codeword");
+					bos.writeBits(cwVal, cwBits, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 				}
+				this.activeTables[codeIndex] = nextTable;
 			}
 			
+			
+			this.su.ksmpl.sample(k);
+			this.su.cismpl.sample(codeIndex);
+			this.su.issmpl.sample(inputSymbol);
+			this.su.cqsmpl.sample(codeQuant);
+			this.su.fbsmpl.sample(flushBit);
+			this.su.ihesmpl.sample(isHighEntropy?1:0);
+			this.su.itsmpl.sample(isTree?1:0);
+			this.su.ntidsmpl.sample(nextTableId);
+			this.su.cwbsmpl.sample(cwBits);
+			this.su.cwvsmpl.sample(cwVal);
 			this.su.accsmpl.sample(accT);
 			this.su.cntsmpl.sample(counterTp1);
+			this.su.ctidsmpl.sample(currentTable.id);
 		}
 		
 

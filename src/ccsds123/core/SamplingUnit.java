@@ -38,6 +38,17 @@ public class SamplingUnit {
 	protected Sampler<Integer> uicismpl		= new Sampler<Integer>("c_uici");
 	protected Sampler<Long> accsmpl			= new Sampler<Long>("c_acc");
 	protected Sampler<Long> cntsmpl 		= new Sampler<Long>("c_cnt");
+	protected Sampler<Integer> ntidsmpl 	= new Sampler<Integer>("c_ntid");
+	protected Sampler<Integer> itsmpl		= new Sampler<Integer>("c_it");
+	protected Sampler<Integer> fbsmpl		= new Sampler<Integer>("c_fb");
+	protected Sampler<Integer> issmpl		= new Sampler<Integer>("c_is");
+	protected Sampler<Integer> ihesmpl		= new Sampler<Integer>("c_ihe");
+	protected Sampler<Integer> cqsmpl		= new Sampler<Integer>("c_cq");
+	protected Sampler<Integer> cismpl		= new Sampler<Integer>("c_ci");
+	protected Sampler<Integer> ksmpl		= new Sampler<Integer>("c_k");
+	protected Sampler<Integer> cwbsmpl		= new Sampler<Integer>("c_cwb");
+	protected Sampler<Integer> cwvsmpl		= new Sampler<Integer>("c_cwv");
+	protected Sampler<Integer> ctidsmpl 	= new Sampler<Integer>("c_ctid");
 	
 	
 	public void export(boolean diagonal, int bands, int lines, int samples) throws IOException {
@@ -95,11 +106,21 @@ public class SamplingUnit {
 			nersmpl.exportDiagonal(bands, lines, samples);
 		}
 		
-		
+		cwbsmpl.export();
+		cwvsmpl.export();
 		accsmpl.export();
 		uicismpl.export();
 		uismpl.export();	
 		cntsmpl.export();
+		ntidsmpl.export();
+		itsmpl.export();
+		fbsmpl.export();
+		issmpl.export();
+		ihesmpl.export();
+		cqsmpl.export();
+		cismpl.export();
+		ksmpl.export();
+		ctidsmpl.export();
 	}
 
 }

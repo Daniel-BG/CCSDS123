@@ -49,6 +49,21 @@ public class CodeCreator {
 			reverseTables[i] = createReverseTable(tables[i], false);
 			reverseFlushTables[i] = createReverseTable(tables[i], true);
 		}
+		//generate IDs for each and every table
+		Queue<TreeTable<Codeword>> tablequeue = new LinkedList<TreeTable<Codeword>>();
+		for (int i = 0; i < 16; i++) {
+			tablequeue.add(tables[i]);
+		}
+		int tableIndex = 0;
+		while (!tablequeue.isEmpty()) {
+			TreeTable<Codeword> tq = tablequeue.poll();
+			if (!tq.isTerminal()) {
+				tq.id = tableIndex;
+				tableIndex++;
+			}
+			for (TreeTable<Codeword> child: tq)
+				tablequeue.add(child);
+		}
 	}
 	
 	public static void checkAllTableIntegrity() {
