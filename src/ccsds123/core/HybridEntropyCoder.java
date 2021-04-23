@@ -118,10 +118,12 @@ public class HybridEntropyCoder extends EntropyCoder {
 					this.activeTables[codeIndex] = this.baseTables[codeIndex];
 				}
 			}
+			
+			this.su.accsmpl.sample(accT);
+			this.su.cntsmpl.sample(counterTp1);
 		}
 		
-		this.su.accsmpl.sample(accT);
-		this.su.cntsmpl.sample(counterTp1);
+
 		
 		if (t == this.cp.samplesPerBand - 1 && b == this.cp.bands - 1) {//last sample, flush things
 			//flush all active tables with their flush codes
@@ -194,12 +196,12 @@ public class HybridEntropyCoder extends EntropyCoder {
 				long counterTp1 = this.getCounterValue(t+1);
 				long counterT = this.getCounterValue(t);
 				long accT = this.accumulator[b];
-				
-				this.su.cntsmpl.reverseUnSample(counterTp1);
-				this.su.accsmpl.reverseUnSample(accT);
+
 				
 				int mqi;
 				if (t > 0) { //reverse accumulator calculation for next iteration
+					this.su.cntsmpl.reverseUnSample(counterTp1);
+					this.su.accsmpl.reverseUnSample(accT);
 					//perform high or low entropy decoding
 					if (accT*(1l<<14) >= (long) CodeCreator.THRESHOLD[0] * counterTp1) {
 						//was coded on high entropy
