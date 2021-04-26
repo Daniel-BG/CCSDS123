@@ -39,6 +39,7 @@ public class CCSDS {
 		}
 		
 		c.compress(image, bos);
+		bos.addPadding(8);
 		bos.paddingFlush();
 		
 		if (args.showCompressionStats) {

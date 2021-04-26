@@ -1,5 +1,18 @@
 package ccsds123;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+
+import com.jypec.util.bits.BitInputStream;
+import com.jypec.util.bits.BitOutputStream;
+
+import ccsds123.util.Sampler;
+
 public class Test {
 	
 	//static String input = "C:/Users/Daniel/Hiperspectral images/cupriteBSQ/Cuprite";
@@ -14,8 +27,8 @@ public class Test {
 	static String inputHeader = "C:/Users/Daniel/Hiperspectral images/Gulf_Wetlands_Sample_Rad/Suwannee_0609-1331_rad.hdr";
 	
 	
-	static String output = "C:/Users/Daniel/Basurero/output.dat";
-	static String output2 = "C:/Users/Daniel/Basurero/output2.dat";
+	static String output = "C:/Users/Daniel/Basurero/out/output.dat";
+	static String output2 = "C:/Users/Daniel/Basurero/out/output2.dat";
 	
 	
 	static String[] argsCompression = 
@@ -61,6 +74,35 @@ public class Test {
 			System.out.println();
 		}
 		
+		BufferedWriter bw;
+		BitInputStream bis;
+		try {
+			bis = new BitInputStream(new FileInputStream(new File(output)));
+			bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(new File(output2))));
+		} catch (FileNotFoundException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+			return;
+		}
+		
+		try {
+			while (true) {
+				long nextVal = bis.readLong();
+				bw.write(Long.toString(nextVal));
+				bw.newLine();
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			// e.printStackTrace();
+		} finally {
+			try {
+				bw.close();
+				bis.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 		
 		
 		
