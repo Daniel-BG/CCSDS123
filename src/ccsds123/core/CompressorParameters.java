@@ -7,40 +7,40 @@ import ccsds123.util.Utils;
 
 public class CompressorParameters {
 
-	protected LocalSumType localSumType;
-	protected int depth;
-	protected boolean fullPredictionMode;
-	protected int predictionBands;
-	protected int omega;
-	protected int r;
+	public LocalSumType localSumType;
+	public int depth;
+	public boolean fullPredictionMode;
+	public int predictionBands;
+	public int omega;
+	public int r;
 	
-	protected int [] absErr;
-	protected int [] relErr;
-	protected boolean useAbsoluteErrLimit;
-	protected boolean useRelativeErrLimit; 
-	protected int absoluteErrorLimitBitDepth;
-	protected int relativeErrorLimitBitDepth;
+	public int [] absErr;
+	public int [] relErr;
+	public boolean useAbsoluteErrLimit;
+	public boolean useRelativeErrLimit; 
+	public int absoluteErrorLimitBitDepth;
+	public int relativeErrorLimitBitDepth;
 	
-	protected int [] resolution;
-	protected int [] damping;
-	protected int [] offset;
+	public int [] resolution;
+	public int [] damping;
+	public int [] offset;
 	
-	protected int tIncExp;
-	protected int vmin;
-	protected int vmax;
+	public int tIncExp;
+	public int vmin;
+	public int vmax;
 	
-	protected int [] intraBandWeightExponentOffsets;
-	protected int [][] interBandWeightExponentOffsets;
+	public int [] intraBandWeightExponentOffsets;
+	public int [][] interBandWeightExponentOffsets;
 	
-	protected int uMax;
-	protected int gammaZero;
-	protected int gammaStar;
-	protected int [] accumulatorInitializationConstant;
+	public int uMax;
+	public int gammaZero;
+	public int gammaStar;
+	public int [] accumulatorInitializationConstant;
 	
-	protected int samplesPerBand;
-	protected int samples;
-	protected int bands;
-	protected int lines;
+	public int samplesPerBand;
+	public int samples;
+	public int bands;
+	public int lines;
 	
 	public CompressorParameters() {
 		this.setDefaults();
@@ -195,35 +195,35 @@ public class CompressorParameters {
 			throw new IllegalStateException("accumulatorInitializationConstant length error");
 	}
 	
-	protected int getAbsErrVal(int band) {
+	public int getAbsErrVal(int band) {
 		return Utils.getVectorValue(this.absErr, band, Constants.DEFAULT_ABS_ERR_VALUE);
 	}
 	
-	protected int getRelErrVal(int band) {
+	public int getRelErrVal(int band) {
 		return Utils.getVectorValue(this.relErr, band, Constants.DEFAULT_REL_ERR_VALUE);
 	}
 	
-	protected int getResolution(int band) {
+	public int getResolution(int band) {
 		return Utils.getVectorValue(this.resolution, band, Constants.DEFAULT_RESOLUTION_VALUE);
 	}
 	
-	protected int getDamping(int band) {
+	public int getDamping(int band) {
 		return Utils.getVectorValue(this.damping, band, Constants.DEFAULT_DAMPING_VALUE);
 	}
 	
-	protected int getOffset(int band) {
+	public int getOffset(int band) {
 		return Utils.getVectorValue(this.offset, band, Constants.DEFAULT_OFFSET_VALUE);
 	}
 	
-	protected int getIntraBandWeightExponentOffset(int band) {
+	public int getIntraBandWeightExponentOffset(int band) {
 		return Utils.getVectorValue(intraBandWeightExponentOffsets, band, Constants.DEFAULT_WEIGHT_EXPONENT_OFFSET);
 	}
 	
-	protected int getInterBandWeightExponentOffsets(int band, int p) {
+	public int getInterBandWeightExponentOffsets(int band, int p) {
 		return Utils.getMatrixValue(interBandWeightExponentOffsets, band, p, Constants.DEFAULT_WEIGHT_EXPONENT_OFFSET);
 	}
 	
-	protected int[][] getInitialWeights() { //EQ 31, 32, 33, 34
+	public int[][] getInitialWeights() { //EQ 31, 32, 33, 34
 		int[][] weights;
 		if (this.fullPredictionMode) {
 			weights = new int[bands][this.predictionBands + 3];

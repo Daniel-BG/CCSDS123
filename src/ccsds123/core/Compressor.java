@@ -31,7 +31,9 @@ public abstract class Compressor {
 		return this.su;
 	}
 
-
+	public CompressorParameters getParamters() {
+		return this.parameters;
+	}
 	
 	
 	public void compress(int [][][] block, BitOutputStream bos) throws IOException {

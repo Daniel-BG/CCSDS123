@@ -64,7 +64,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 	}
 	
 	private void debug(long value, int bits, String text) {
-		//System.out.println(text + " -> " + bits + "'h" + Long.toHexString(value));
+		System.out.println(text + " -> " + bits + "'h" + Long.toHexString(value));
 	}
 	
 	@Override
@@ -73,11 +73,11 @@ public class HybridEntropyCoder extends EntropyCoder {
 		long counterT = this.getCounterValue(t);
 		long counterTp1 = this.getCounterValue(t+1);
 		long accT;
-		debug(mappedQuantizerIndex, this.cp.depth, "Coding mqi");
+		//debug(mappedQuantizerIndex, this.cp.depth, "Coding mqi");
 
 		if (t == 0) {
 			//code raw mqi value
-			debug(mappedQuantizerIndex, this.cp.depth, "Write raw MQI");
+			//debug(mappedQuantizerIndex, this.cp.depth, "Write raw MQI");
 			bos.writeBits(mappedQuantizerIndex, this.cp.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 			accT = this.accumulator[b];
 		} else {
@@ -116,23 +116,23 @@ public class HybridEntropyCoder extends EntropyCoder {
 			if ((flushBit & 0x2) != 0) {
 				Bit bit = flushBit % 2 == 0 ? Bit.BIT_ZERO : Bit.BIT_ONE;
 				bos.writeBit(bit);
-				debug(bit.toInteger(), this.cp.depth, "Write excess bit from acc: " + Long.toHexString(this.accumulator[b]));
+				//debug(bit.toInteger(), this.cp.depth, "Write excess bit from acc: " + Long.toHexString(this.accumulator[b]));
 			}
 			
 			//perform high or low entropy coding
 			if (isHighEntropy) {
 				//high entropy
-				debug(mappedQuantizerIndex, k, "Write High entropy MQI + (" + accT + "," + counterTp1 + ")");
+				//debug(mappedQuantizerIndex, k, "Write High entropy MQI + (" + accT + "," + counterTp1 + ")");
 				this.reverseLengthLimitedGolombPowerOfTwoCode(mappedQuantizerIndex, k, bos);
 			} else {
 				//low entropy
 				if (inputSymbol == CodeCreator.CODE_X_VAL) {
-					debug(codeQuant, 0, "Write low entropy excess");
+					//debug(codeQuant, 0, "Write low entropy excess");
 					this.reverseLengthLimitedGolombPowerOfTwoCode(codeQuant, 0, bos);
 				}
 				
 				if (!isTree) { 	//output final code and reset table
-					debug(cwVal, cwBits, "Write table codeword");
+					//debug(cwVal, cwBits, "Write table codeword");
 					bos.writeBits(cwVal, cwBits, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 				}
 				this.activeTables[codeIndex] = nextTable;
@@ -160,7 +160,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 			//flush all active tables with their flush codes
 			for (int i = 0; i < 16; i++) {
 				Codeword flushWord = this.activeTables[i].getValue();
-				debug(flushWord.getValue(), flushWord.getBits(), "Flush table");
+				//debug(flushWord.getValue(), flushWord.getBits(), "Flush table");
 				bos.writeBits(flushWord.getValue(), flushWord.getBits(), BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 			}
 			//flush accumulators
@@ -169,7 +169,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 				bos.writeBits(this.accumulator[i], 2 + this.cp.depth + this.cp.gammaStar, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 			}
 			//flush a single '1' bit so that the end can be identified when reading backwards
-			debug(1, 1, "Mark EOS");
+			//debug(1, 1, "Mark EOS");
 			bos.writeBit(Bit.BIT_ONE);
 		}
 	}
@@ -198,13 +198,13 @@ public class HybridEntropyCoder extends EntropyCoder {
 		
 		//first read until the first one
 		while (bis.readBit() == Bit.BIT_ZERO)
-			debug(0, 1, "Read input padding");
-		debug(1, 1, "Read end of input padding");
+			//debug(0, 1, "Read input padding");
+		//debug(1, 1, "Read end of input padding");
 		//read the accumulators
 		this.accumulator = new long[this.cp.bands];
 		for (int i = this.cp.bands - 1; i >= 0; i--) {
 			this.accumulator[i] = bis.readLongBits(2 + this.cp.depth + this.cp.gammaStar, BitStreamConstants.ORDERING_RIGHTMOST_FIRST);
-			debug(this.accumulator[i], 2 + this.cp.depth + this.cp.gammaStar, "Read input acc");
+			//debug(this.accumulator[i], 2 + this.cp.depth + this.cp.gammaStar, "Read input acc");
 		}
 		//read the flush tables
 		for (int i = 15; i >= 0; i--) {
@@ -217,7 +217,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 				rft = rft.getChild(bit.toInteger());
 			}
 			codeword = BitTwiddling.reverseBits(codeword, codelength);
-			debug(codeword, codelength, "Read flush table code");
+			//debug(codeword, codelength, "Read flush table code");
 			this.activeTables[i] = rft.getValue();
 		}
 		
@@ -238,7 +238,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 						//was coded on high entropy
 						int k = this.getK(counterTp1, accT);
 						mqi = this.reverseLengthLimitedGolombPowerOfTwoDecode(k, bis);
-						debug(mqi, k, "Read high entropy mqi (" + accT + "," + counterTp1 + ")");
+						//debug(mqi, k, "Read high entropy mqi (" + accT + "," + counterTp1 + ")");
 					} else {
 						//low entropy
 						int codeIndex = this.getCodeIndex(accT, counterTp1);
@@ -253,7 +253,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 								rt = rt.getChild(bit.toInteger());
 							}
 							codeword = BitTwiddling.reverseBits(codeword, codelength);
-							debug(codeword, codelength, "Read flush table code");
+							//debug(codeword, codelength, "Read flush table code");
 							this.activeTables[codeIndex] = rt.getValue();
 						}
 						//get symbol and update current table
@@ -261,11 +261,11 @@ public class HybridEntropyCoder extends EntropyCoder {
 						this.activeTables[codeIndex] = this.activeTables[codeIndex].getParent(); 
 						if (inputSymbol == CodeCreator.CODE_X_VAL) {
 							int difference = this.reverseLengthLimitedGolombPowerOfTwoDecode(0, bis);
-							debug(difference, 0, "Read low entropy excess");
+							//debug(difference, 0, "Read low entropy excess");
 							mqi = difference + CodeCreator.INPUTSYMBOLLIMIT[codeIndex] + 1;
 						} else { //inputSymbol is mqi
 							mqi = inputSymbol;
-							debug(mqi, 0, "Input symbol");
+							//debug(mqi, 0, "Input symbol");
 						}	
 					}
 					
@@ -278,17 +278,17 @@ public class HybridEntropyCoder extends EntropyCoder {
 						if (bit == Bit.BIT_ZERO) 
 							this.accumulator[b] += 1;
 						
-						debug(bit.toInteger(), 1, "Read excess bit from acc");
+						//debug(bit.toInteger(), 1, "Read excess bit from acc");
 					}
 					
 				} else { //raw value is encoded
 					mqi = bis.readBits(this.cp.depth, BitStreamConstants.ORDERING_RIGHTMOST_FIRST);
-					debug(mqi, this.cp.depth, "Read raw mqi");
+					//debug(mqi, this.cp.depth, "Read raw mqi");
 				}
 				decodedMQI[b*this.cp.samplesPerBand + t] = mqi;
 
 				
-				debug(mqi, this.cp.depth, "Decoded mqi");
+				//debug(mqi, this.cp.depth, "Decoded mqi");
 			}
 		}
 	}

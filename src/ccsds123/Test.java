@@ -10,8 +10,8 @@ import java.io.OutputStreamWriter;
 
 import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
-
-import ccsds123.util.Sampler;
+import com.jypec.util.bits.BitStreamConstants;
+import com.jypec.util.bits.BitTwiddling;
 
 public class Test {
 	
@@ -28,6 +28,7 @@ public class Test {
 	
 	
 	static String output = "C:/Users/Daniel/Basurero/out/output.dat";
+	static String output_inv = "C:/Users/Daniel/Basurero/out/output_inv.dat";
 	static String output2 = "C:/Users/Daniel/Basurero/out/output2.dat";
 	
 	
@@ -59,7 +60,7 @@ public class Test {
 			"-k", "--stats",
 			"--bitdepth", "16",
 			//"--custom_size", "8", "8", "8",
-			"--custom_size", "64", "8", "64",
+			"--custom_size", "64", "32", "16",
 			"--hybrid",
 			//"--custom_size", "32", "2", "3",
 			//"--custom_size", "360", "64", "64"
@@ -76,9 +77,11 @@ public class Test {
 		
 		BufferedWriter bw;
 		BitInputStream bis;
+		BitOutputStream bos;
 		try {
 			bis = new BitInputStream(new FileInputStream(new File(output)));
 			bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(new File(output2))));
+			bos = new BitOutputStream(new FileOutputStream(new File(output_inv)));
 		} catch (FileNotFoundException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -87,7 +90,11 @@ public class Test {
 		
 		try {
 			while (true) {
-				long nextVal = bis.readLong();
+				int nextVal1 = bis.readInt();
+				int nextVal2 = bis.readInt();
+				long nextVal = (((long) nextVal1) << 32) | (((long) nextVal2) & 0xffffffffl);
+				bos.writeBits(Integer.reverseBytes(nextVal1), 32, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+				bos.writeBits(Integer.reverseBytes(nextVal2), 32, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 				bw.write(Long.toString(nextVal));
 				bw.newLine();
 			}
@@ -98,6 +105,7 @@ public class Test {
 			try {
 				bw.close();
 				bis.close();
+				bos.close();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

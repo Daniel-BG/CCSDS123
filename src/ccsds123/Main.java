@@ -9,7 +9,10 @@ import org.apache.commons.cli.ParseException;
 
 import com.jypec.img.HyperspectralImage;
 import com.jypec.img.HyperspectralImageData;
+import com.jypec.util.io.HyperspectralImageDataWriter;
 import com.jypec.util.io.HyperspectralImageReader;
+import com.jypec.util.io.headerio.enums.BandOrdering;
+import com.jypec.util.io.headerio.enums.ByteOrdering;
 
 import ccsds123.cli.CCSDSCLI;
 import ccsds123.cli.InputArguments;
@@ -64,6 +67,8 @@ public class Main {
 	        		//preprocess input image
 	        		if (iArgs.useCustomSize)
 	        			hid = hid.resize(iArgs.bands, iArgs.lines, iArgs.samples);
+	        		
+	        		HyperspectralImageDataWriter.writeImageData(hid, 0, iArgs.output + ".rawin.bin", BandOrdering.BIP, ByteOrdering.LITTLE_ENDIAN);
 	        		//prepare for compression
 	        		cp.setSize(hid.getNumberOfSamples(), hid.getNumberOfLines(), hid.getNumberOfBands());
 

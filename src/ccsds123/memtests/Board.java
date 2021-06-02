@@ -124,15 +124,56 @@ public class Board {
 
 
 	
-	public static final int EXTRA_PRELOAD = 8; //up to 6 in practice (3x3->7 (1+6)
+	public static final int EXTRA_PRELOAD = 189; //up to 6 in practice (3x3->7 (1+6)
 	
 	public static void main(String[] args) {
 		Board.checkWriteRead(ThreeDCoordinate.AdvancementType.VERTICAL, ThreeDCoordinate.AdvancementType.DIAGONAL);
-		//Board.checkWriteRead(ThreeDCoordinate.AdvancementType.DIAGONAL, ThreeDCoordinate.AdvancementType.VERTICAL);
+		Board.checkWriteRead(ThreeDCoordinate.AdvancementType.DIAGONAL, ThreeDCoordinate.AdvancementType.VERTICAL);
+		//Board.checkMaxWrites(ThreeDCoordinate.AdvancementType.DIAGONAL, ThreeDCoordinate.AdvancementType.VERTICAL);
+	}
+	
+	private static void checkMaxWrites(AdvancementType atWrite, AdvancementType atRead) {
+		int size = 5;
+		Board board = new Board(size, size);
+		ThreeDCoordinate wCoord = new ThreeDCoordinate(0, 0, 0, size, size, size, atWrite);
+		ThreeDCoordinate rCoord = new ThreeDCoordinate(0, 0, 0, size, size, size, atRead);
+		
+		boolean endVert = false, endDiag = false;
+		int iters = 0;
+		while(!endVert || !endDiag) {
+			iters++;
+			if (!endVert) {
+				if (board.safeSet(wCoord)) {
+					System.out.println("IT: " + iters + "->" + board.getState());
+					if (!wCoord.nextCoord())
+						endVert = true;
+				}
+			}
+			board.checkCount();
+			if (!endDiag) {
+				while (board.safeUnSet(rCoord)) {
+					System.out.println("IT: " + iters + "->" + board.getState());
+					if (!rCoord.nextCoord())
+						endDiag = true;
+				}
+			}
+			board.checkCount();
+			
+			//board.printBoard();
+			
+		}
+	
+		board.printBoard();
+		
+		/*while(board.safeSet(vert))
+			vert.nextCoord();
+		
+		System.out.println("IT: " + iters + "->" + board.getState());
+		board.printBoard();*/	
 	}
 
 	private static void checkWriteRead(AdvancementType atWrite, AdvancementType atRead) {
-		int size = 4;
+		int size = 64;
 		Board board = new Board(size, size);
 		ThreeDCoordinate wCoord = new ThreeDCoordinate(0, 0, 0, size, size, size, atWrite);
 		ThreeDCoordinate rCoord = new ThreeDCoordinate(0, 0, 0, size, size, size, atRead);
@@ -157,6 +198,8 @@ public class Board {
 					//System.out.println("Set @ " + wCoord);
 					if (!wCoord.nextCoord())
 						endVert = true;
+				} else {
+					throw new IllegalStateException("Too much info");
 				}
 			}
 			board.checkCount();
@@ -166,6 +209,8 @@ public class Board {
 					if (!rCoord.nextCoord())
 						endDiag = true;
 					//System.out.println("Next UnSet @ " + rCoord);
+				} else {
+					throw new IllegalStateException("NO INFO");
 				}
 			}
 			board.checkCount();
