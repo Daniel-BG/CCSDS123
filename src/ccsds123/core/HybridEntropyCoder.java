@@ -162,6 +162,24 @@ public class HybridEntropyCoder extends EntropyCoder {
 				Codeword flushWord = this.activeTables[i].getValue();
 				//debug(flushWord.getValue(), flushWord.getBits(), "Flush table");
 				bos.writeBits(flushWord.getValue(), flushWord.getBits(), BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+				
+				this.su.ksmpl.sample(0);
+				this.su.cismpl.sample(i);
+				this.su.issmpl.sample(14);
+				this.su.cqsmpl.sample(0 - CodeCreator.INPUTSYMBOLLIMIT[i] - 1);
+				this.su.fbsmpl.sample(0);
+				this.su.ihesmpl.sample(0);
+				this.su.itsmpl.sample(0);
+				this.su.ntidsmpl.sample(i);
+				TreeTable<Codeword> entry = this.activeTables[i];
+				Codeword cw = entry.getValue();
+				this.su.cwbsmpl.sample(cw.getBits());
+				this.su.cwvsmpl.sample(cw.getValue());
+				//this.su.accsmpl.sample();
+				//this.su.cntsmpl.sample();
+				this.su.ctidsmpl.sample(this.activeTables[i].id);
+
+
 			}
 			//flush accumulators
 			for (int i = 0; i < this.cp.bands; i++) {

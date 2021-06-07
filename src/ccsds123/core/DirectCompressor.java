@@ -404,7 +404,7 @@ public class DirectCompressor extends Compressor {
 			}
 			for (int p = 0; p < this.parameters.predictionBands; p++) {
 				if (b - p > 0) 
-					predictedCentralDiff += weights[b][p+windex] * diffBlock[b-p-1][l][s];
+					predictedCentralDiff += (long) weights[b][p+windex] * (long) diffBlock[b-p-1][l][s];
 			}
 		}
 		
