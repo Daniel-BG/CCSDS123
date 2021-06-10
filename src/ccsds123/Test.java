@@ -60,7 +60,8 @@ public class Test {
 			"-k", "--stats",
 			"--bitdepth", "16",
 			//"--custom_size", "8", "8", "8",
-			"--custom_size", "64", "32", "16",
+			//"--custom_size", "64", "32", "16",
+			"--custom_size", "128", "64", "64",
 			"--hybrid",
 			//"--custom_size", "32", "2", "3",
 			//"--custom_size", "360", "64", "64"

@@ -116,6 +116,16 @@ public class CodeCreator {
 	private static final long CODE_TERMINAL = 0xc;
 	private static final long CODE_NEXTTAB  = 0x4;
 	
+	private static class TableEntry {
+		public int[] codes;
+		{
+			codes = new int[16];
+			for (int i = 0; i < codes.length; i++) {
+				codes[i] = 0;
+			}
+		}
+	}
+	
 	private static void generateVHDLRepr() {
 		//generate IDs for each and every table
 		Queue<TreeTable<Codeword>> tablequeue = new LinkedList<TreeTable<Codeword>>();
@@ -143,7 +153,7 @@ public class CodeCreator {
 			throw new IllegalStateException("Code is thought for up to 28 bits of entry plus 4 of entry code, change it if this exception is raised");
 		
 		System.out.println("Total tables: " + tableIndex + " needing " + (CODE_AMOUNT + 1) + " entries and "+ totalBitsPerEntry + " bits per entry ");
-		BigInteger[] binTables = new BigInteger[tableIndex];
+		TableEntry[] binTables = new TableEntry[tableIndex];
 		
 		tablequeue = new LinkedList<TreeTable<Codeword>>();
 		for (int i = 0; i < 16; i++) {
@@ -157,7 +167,9 @@ public class CodeCreator {
 			long code = tq.getValue().getValue();
 			code |= ((long) tq.getValue().getBits()) << entryBits;
 			code |= CODE_FLUSH << (totalBitsPerEntry - 4);
-			BigInteger base = BigInteger.valueOf(code);
+			TableEntry base = new TableEntry();
+			base.codes[14] = (int) code;
+			base.codes[15] = (int) 0xb0000000;
 			
 			for (int i = 0; i < CODE_AMOUNT; i++) {
 				TreeTable<Codeword> child = tq.getChild(i);
@@ -176,15 +188,19 @@ public class CodeCreator {
 					nextCode = child.id;
 					nextCode |= CODE_NEXTTAB << (totalBitsPerEntry - 4);
 				}
-				base = base.shiftLeft(totalBitsPerEntry);
-				base = base.or(BigInteger.valueOf(nextCode));
+				base.codes[i] = (int) nextCode;
 			}
 			//save the current table entry
 			binTables[tq.id] = base;
 		}
 		//output this shiat
-		for (BigInteger bi: binTables)
-			System.out.println("x\"" + bi.toString(16) + "\",");
+		for (TableEntry bi: binTables) {
+			for(int i: bi.codes) {
+				System.out.print("x\"" + Integer.toHexString(i) + "\",");
+			}
+			System.out.println("");
+		}
+			
 		
 	}
 	
