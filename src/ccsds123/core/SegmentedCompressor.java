@@ -47,6 +47,7 @@ public class SegmentedCompressor extends Compressor {
 		
 		//queues
 		Queue<Pair<Long, Coordinate>> 	westQueue 		= new LinkedList<Pair<Long, Coordinate>>();
+		Queue<Pair<Long, Coordinate>> 	westDownQueue 	= new LinkedList<Pair<Long, Coordinate>>();
 		Queue<Pair<Long, Coordinate>> 	northQueue 		= new LinkedList<Pair<Long, Coordinate>>();
 		Queue<Pair<Long, Coordinate>> 	northEastQueue 	= new LinkedList<Pair<Long, Coordinate>>();
 		Queue<Pair<Long, Coordinate>> 	northWestQueue 	= new LinkedList<Pair<Long, Coordinate>>();
@@ -94,9 +95,9 @@ public class SegmentedCompressor extends Compressor {
 			int currSample = sampleQueue.remove();
 			
 			////NEIGHBORHOOD BEGIN 4.1
-			Long westRep, northWestRep, northRep, northEastRep;
+			Long westRep, westDownRep, northWestRep, northRep, northEastRep;
 			Coordinate dummy = new Coordinate(-3, -3, -3);
-			Coordinate westCoord = dummy, northWestCoord = dummy, northCoord = dummy, northEastCoord = dummy;
+			Coordinate westCoord = dummy, westDownCoord = dummy, northWestCoord = dummy, northCoord = dummy, northEastCoord = dummy;
 			Pair<Long, Coordinate> qData;
 			//west sample
 			if (currCoord.firstSample() && currCoord.firstLine()) {
@@ -105,6 +106,14 @@ public class SegmentedCompressor extends Compressor {
 				qData = westQueue.remove();
 				westRep = qData.first(); //use to transform last west sample into northeast
 				westCoord = qData.second();
+			}
+			//west down sample
+			if (currCoord.firstBand() || currCoord.firstT()) {
+				westDownRep = 0l;
+			} else {
+				qData = westDownQueue.remove();
+				westDownRep = qData.first();
+				westDownCoord = qData.second();
 			}
 			//north sample
 			if (currCoord.firstLine()) {
@@ -138,16 +147,16 @@ public class SegmentedCompressor extends Compressor {
 			switch (this.parameters.localSumType) {
 				case WIDE_NEIGHBOR_ORIENTED: { //EQ 20
 					if (!currCoord.firstLine() && !currCoord.firstSample() && !currCoord.lastSample(this.parameters.samples)) {
-						this.checkCoordinates(currCoord, westCoord, northWestCoord, northCoord, northEastCoord);
+						this.checkCoordinates(currCoord, westCoord, null, northWestCoord, northCoord, northEastCoord);
 						localSum = westRep + northRep + northEastRep + northWestRep;
 					} else if (currCoord.firstLine() && !currCoord.firstSample()) {
-						this.checkCoordinates(currCoord, westCoord, null, null, null);
+						this.checkCoordinates(currCoord, westCoord, null, null, null, null);
 						localSum = westRep << 2;
 					} else if (!currCoord.firstLine() && currCoord.firstSample()) {
-						this.checkCoordinates(currCoord, null, null, northCoord, northEastCoord);
+						this.checkCoordinates(currCoord, null, null, null, northCoord, northEastCoord);
 						localSum = (northRep + northEastRep) << 1;
 					} else if (!currCoord.firstLine() && currCoord.lastSample(this.parameters.samples)) {
-						this.checkCoordinates(currCoord, westCoord, northWestCoord, northCoord, null);
+						this.checkCoordinates(currCoord, westCoord, null, northWestCoord, northCoord, null);
 						localSum = westRep + northWestRep + (northRep << 1);
 					} else if (currCoord.firstT()){
 						localSum = 0;
@@ -158,14 +167,52 @@ public class SegmentedCompressor extends Compressor {
 				}
 				case WIDE_COLUMN_ORIENTED: { //EQ 22
 					if (!currCoord.firstLine()) {
-						this.checkCoordinates(currCoord, null, null, northCoord, null);
+						this.checkCoordinates(currCoord, null, null, null, northCoord, null);
 						localSum = northRep << 2;
 					} else if (currCoord.firstLine() && !currCoord.firstSample()) {
-						this.checkCoordinates(currCoord, westCoord, null, null, null);
+						this.checkCoordinates(currCoord, westCoord, null, null, null, null);
 						localSum = westRep << 2;
 					} else  if (currCoord.firstT()) {
 						localSum = 0; 
 					} else {						
+						throw new IllegalStateException("Should not get here");
+					}
+					break;
+				}
+				case NARROW_NEIGHBOR_ORIENTED: {
+					if (!currCoord.firstLine() && !currCoord.firstSample() && !currCoord.lastSample(this.parameters.samples)) {
+						this.checkCoordinates(currCoord, null, null, northWestCoord, northCoord, northEastCoord);
+						localSum = northEastRep + (northRep << 1) + northWestRep;
+					} else if (currCoord.firstLine() && !currCoord.firstSample() && !currCoord.firstBand()) {
+						this.checkCoordinates(currCoord, null, westDownCoord, null, null, null);
+						localSum = westDownRep << 2;
+					} else if (!currCoord.firstLine() && currCoord.firstSample()) {
+						this.checkCoordinates(currCoord, null, null, null, northCoord, northEastCoord);
+						localSum = (northRep + northEastRep) << 1;
+					} else if (!currCoord.firstLine() && currCoord.lastSample(this.parameters.samples)) {
+						this.checkCoordinates(currCoord, null, null, northWestCoord, northCoord, null);
+						localSum = (northRep + northWestRep) << 1;
+					} else if (currCoord.firstLine() && !currCoord.firstSample() && currCoord.firstBand()) {
+						localSum = ParameterCalc.sMid(this.parameters.depth) << 2;
+					} else if (currCoord.firstT()){
+						localSum = 0;
+					} else {
+						throw new IllegalStateException("Should not get here" + currCoord);
+					}
+					break;
+				}
+				case NARROW_COLUMN_ORIENTED: {
+					if (!currCoord.firstLine()) {
+						this.checkCoordinates(currCoord, null, null, null, northCoord, null);
+						localSum = northRep << 2;
+					} else if (currCoord.firstLine() && !currCoord.firstSample() && !currCoord.firstBand()) {
+						this.checkCoordinates(currCoord, null, westDownCoord, null, null, null);
+						localSum = westDownRep << 2;
+					} else if (currCoord.firstLine() && !currCoord.firstSample() && currCoord.firstBand()) {
+						localSum = ParameterCalc.sMid(this.parameters.depth) << 2;
+					} else if (currCoord.firstT()){
+						localSum = 0;
+					} else {
 						throw new IllegalStateException("Should not get here");
 					}
 					break;
@@ -311,7 +358,7 @@ public class SegmentedCompressor extends Compressor {
 			
 			
 			//GET THINGS BACK TO THEIR QUEUES
-			/* Curr -> W
+			/* Curr -> W, WD (NOTE IT IS NOT POSSIBLE TO CONCATENATE W, WD, NE queues since when BANDS>SAMPLES, the last frame does not have enough cycles to pass from WDQ to NEQ
 			 * W -> NE
 			 * NE -> N
 			 * N -> NW
@@ -321,6 +368,10 @@ public class SegmentedCompressor extends Compressor {
 			if (!currCoord.lastLine(this.parameters.lines) || !currCoord.lastSample(this.parameters.samples)) {
 				westQueue.add(new Pair<>(currRep, currCoord));
 			} 
+			
+			if (!currCoord.lastBand(this.parameters.bands) && !currCoord.lastT(this.parameters.samples, this.parameters.lines)) {
+				westDownQueue.add(new Pair<>(currRep, currCoord));
+			}
 			
 			if (!currCoord.lastLine(this.parameters.lines) && !currCoord.firstSample() || !currCoord.firstLine() && currCoord.firstSample()) {
 				northEastQueue.add(new Pair<>(westRep, westCoord));
@@ -379,6 +430,7 @@ public class SegmentedCompressor extends Compressor {
 		
 		//compress and all the other stuff from the residuals
 		System.out.println("State of queues \n\t W: " + westQueue.size() +
+											"\n\tDW: " + westDownQueue.size() +
 											"\n\tNE: " + northEastQueue.size() +
 											"\n\t N: " + northQueue.size() +  
 											"\n\tNW: " + northWestQueue.size() +
@@ -432,10 +484,13 @@ public class SegmentedCompressor extends Compressor {
 	}
 	
 	
-	private void checkCoordinates(Coordinate current, Coordinate west, Coordinate northWest, Coordinate north, Coordinate northEast) {
+	private void checkCoordinates(Coordinate current, Coordinate west, Coordinate westDown, Coordinate northWest, Coordinate north, Coordinate northEast) {
 		if (west != null)
 			if (current.band != west.band || current.line != west.line || current.sample-1 != west.sample) 
 				throw new IllegalStateException("FAIL @ west: (" + current + " -> " + west + ")");
+		if (westDown != null)
+			if (current.band-1 != westDown.band || current.line != westDown.line || current.sample-1 != westDown.sample) 
+				throw new IllegalStateException("FAIL @ westDown: (" + current + " -> " + westDown + ")");
 		if (northWest != null)
 			if (current.band != northWest.band || current.line-1 != northWest.line || current.sample-1 != northWest.sample) 
 				throw new IllegalStateException("FAIL @ northWest: (" + current + " -> " + northWest + ")");

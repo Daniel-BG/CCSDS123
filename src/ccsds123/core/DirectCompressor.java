@@ -304,7 +304,7 @@ public class DirectCompressor extends Compressor {
 				if (l > 0 && s > 0 && s < samples - 1) {
 					localSum = repBlock[b][l-1][s-1] + (repBlock[b][l-1][s] << 1) + repBlock[b][l-1][s+1];
 				} else if (l == 0 && s > 0 && b > 0) {
-					localSum = repBlock[b-1][l][s-1];
+					localSum = repBlock[b-1][l][s-1] << 2;
 				} else if (l > 0 && s == 0) {
 					localSum = (repBlock[b][l-1][s] + repBlock[b][l-1][s+1]) << 1;
 				} else if (l > 0 && s == samples - 1) {
