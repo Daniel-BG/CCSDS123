@@ -86,7 +86,7 @@ public class Sampler <T> {
 	}
 	
 	public void exportDiagonal(int bands, int lines, int samples) throws IOException {
-		if (DISABLE_SAMPLING)
+		if (DISABLE_SAMPLING || samplingDQ.isEmpty())
 			return;
 		FileOutputStream fos = new FileOutputStream(Sampler.samplePath + this.filename + Sampler.extension + Sampler.diagonalMarker, false);
 		OutputStreamWriter osw = new OutputStreamWriter(fos);

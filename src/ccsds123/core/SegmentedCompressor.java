@@ -77,6 +77,7 @@ public class SegmentedCompressor extends Compressor {
 		long[][][] srarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		long[][][] tarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		long[][][] mqiarr 	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
+		long[][][] wdrarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		long[][][] wrarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		long[][][] nwrarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
 		long[][][] nerarr	= new long[this.parameters.bands][this.parameters.lines][this.parameters.samples];
@@ -226,11 +227,11 @@ public class SegmentedCompressor extends Compressor {
 			
 			////LOCAL DIFF BEGIN 4.5
 			long northDiff, westDiff, northWestDiff;
-			if (!currCoord.firstSample() && !currCoord.firstLine()) {
+			if (this.parameters.fullPredictionMode && !currCoord.firstSample() && !currCoord.firstLine()) {
 				northDiff = (northRep << 2) - localSum;
 				westDiff = (westRep << 2) - localSum;
 				northWestDiff = (northWestRep << 2) - localSum;
-			} else if (currCoord.firstSample() && !currCoord.firstLine()) {
+			} else if (this.parameters.fullPredictionMode && currCoord.firstSample() && !currCoord.firstLine()) {
 				northDiff = (northRep << 2) - localSum;
 				westDiff = (northRep << 2) - localSum;
 				northWestDiff = (northRep << 2) - localSum;
@@ -387,10 +388,12 @@ public class SegmentedCompressor extends Compressor {
 			
 			
 			if (!currCoord.lastBand(this.parameters.bands)) {
-				for (int i = diffs.length-1; i > 0; i--) {
-					diffs[i] = diffs[i-1];
+				if (this.parameters.predictionBands > 0) {
+					for (int i = diffs.length-1; i > 0; i--) {
+						diffs[i] = diffs[i-1];
+					}
+					diffs[0] = currDif;
 				}
-				diffs[0] = currDif;
 				
 				diffQueue.add(new Pair<long[], Coordinate>(diffs, currCoord));
 			}
@@ -420,6 +423,7 @@ public class SegmentedCompressor extends Compressor {
 			cldarr[currCoord.band][currCoord.line][currCoord.sample] = currDif;
 			wusearr[currCoord.band][currCoord.line][currCoord.sample] = weightUpdateScalingExponent;
 			warr[currCoord.band][currCoord.line][currCoord.sample] = cwl;
+			wdrarr[currCoord.band][currCoord.line][currCoord.sample] = westDownRep;
 			wrarr[currCoord.band][currCoord.line][currCoord.sample] = westRep;
 			nwrarr[currCoord.band][currCoord.line][currCoord.sample] = northWestRep;
 			nerarr[currCoord.band][currCoord.line][currCoord.sample] = northEastRep;
@@ -445,6 +449,7 @@ public class SegmentedCompressor extends Compressor {
 				for (int k = 0; k < this.parameters.bands; k++) {
 					this.entropyCoder.code((int) mqiarr[k][i][j], i*this.parameters.samples+j, k, bos);
 
+					su.wdrsmpl.sample(wdrarr[k][i][j]);
 					su.wrsmpl.sample(wrarr[k][i][j]);
 					su.nrsmpl.sample(nrarr[k][i][j]);
 					su.nwrsmpl.sample(nwrarr[k][i][j]);
