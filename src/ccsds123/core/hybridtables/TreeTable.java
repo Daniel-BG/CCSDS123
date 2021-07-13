@@ -154,6 +154,14 @@ public class TreeTable<TERMINAL_T> implements Iterable<TreeTable<TERMINAL_T>>{
 	
 	//to build the cool tables
 	public int id = -1;
+
+	public int getTopParentId() {
+		TreeTable <TERMINAL_T> table = this;
+		while (!table.isRoot()) {
+			table = table.parent;
+		}
+		return table.id;
+	}
 	
 
 }

@@ -22,14 +22,9 @@ public class SegmentedCompressor extends Compressor {
 		return c.decompress(bis);
 	}
 	
-	
-
-	
-	
 	Queue<Coordinate> coordQueue;
 	Queue<Integer> sampleQueue;
 	
-
 	@Override
 	public void doCompress(int[][][] block, BitOutputStream bos) throws IOException {
 		coordQueue = new LinkedList<Coordinate>();
@@ -109,7 +104,7 @@ public class SegmentedCompressor extends Compressor {
 				westCoord = qData.second();
 			}
 			//west down sample
-			if (currCoord.firstBand() || currCoord.firstT()) {
+			if (currCoord.firstBand() || currCoord.firstSample()) {
 				westDownRep = 0l;
 			} else {
 				qData = westDownQueue.remove();
@@ -370,7 +365,7 @@ public class SegmentedCompressor extends Compressor {
 				westQueue.add(new Pair<>(currRep, currCoord));
 			} 
 			
-			if (!currCoord.lastBand(this.parameters.bands) && !currCoord.lastT(this.parameters.samples, this.parameters.lines)) {
+			if (!currCoord.lastBand(this.parameters.bands) && !currCoord.lastSample(this.parameters.samples)) {
 				westDownQueue.add(new Pair<>(currRep, currCoord));
 			}
 			

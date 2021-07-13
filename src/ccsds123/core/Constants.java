@@ -58,8 +58,8 @@ public class Constants {
 		}
 	}
 	
-	public static final boolean DEFAULT_FULL_PREDICTION_ENABLED = false;
-	public static final LocalSumType DEFAULT_LOCAL_SUM_TYPE = LocalSumType.NARROW_COLUMN_ORIENTED;
+	public static final boolean DEFAULT_FULL_PREDICTION_ENABLED = true;
+	public static final LocalSumType DEFAULT_LOCAL_SUM_TYPE = LocalSumType.WIDE_NEIGHBOR_ORIENTED;
 	
 	public static final int MIN_OMEGA = 4;
 	public static final int DEFAULT_OMEGA = 19;
@@ -75,7 +75,7 @@ public class Constants {
 	public static final int MAX_T_EXP = 11;
 	
 	public static final int MIN_P = 0;
-	public static final int DEFAULT_P = 0;
+	public static final int DEFAULT_P = 3;
 	public static final int MAX_P = 15;
 	
 	public static final int MIN_ACC_INIT_CONSTANT = 0;

@@ -11,7 +11,6 @@ import java.io.OutputStreamWriter;
 import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
 import com.jypec.util.bits.BitStreamConstants;
-import com.jypec.util.bits.BitTwiddling;
 
 public class Test {
 	
@@ -19,17 +18,19 @@ public class Test {
 	//static String input = "C:/Users/Daniel/Hiperspectral images/Reno_Radiance_wIGMGLT/0913-1248_rad.dat";
 	//static String input = "C:/Users/Daniel/Hiperspectral images/Gulf_Wetlands_Sample_Rad/Suwannee_0609-1331_rad.dat";
 	//static String input = "C:/Users/Daniel/Hiperspectral images/Beltsville_Radiance_w_IGM/0810_2022_rad.dat";
-	static String input = "C:/Users/Daniel/Hiperspectral images/Gulf_Wetlands_Sample_Rad/Suwannee_0609-1331_rad.dat";
+	//static String input = "C:/Users/Daniel/Hiperspectral images/Gulf_Wetlands_Sample_Rad/Suwannee_0609-1331_rad.dat";
+	static String input = "C:/Users/Daniel/Hiperspectral images/TestPattern/test_ptn_x100y36z17_16u.bip";
 	//static String inputHeader = "C:/Users/Daniel/Hiperspectral images/cupriteBSQ/Cuprite.hdr";
 	//static String inputHeader = "C:/Users/Daniel/Hiperspectral images/Reno_Radiance_wIGMGLT/0913-1248_rad.hdr";
 	//static String inputHeader = "C:/Users/Daniel/Hiperspectral images/Gulf_Wetlands_Sample_Rad/Suwannee_0609-1331_rad.hdr";
 	//static String inputHeader = "C:/Users/Daniel/Hiperspectral images/Beltsville_Radiance_w_IGM/0810_2022_rad.hdr";
-	static String inputHeader = "C:/Users/Daniel/Hiperspectral images/Gulf_Wetlands_Sample_Rad/Suwannee_0609-1331_rad.hdr";
+	//static String inputHeader = "C:/Users/Daniel/Hiperspectral images/Gulf_Wetlands_Sample_Rad/Suwannee_0609-1331_rad.hdr";
+	static String inputHeader = "C:/Users/Daniel/Hiperspectral images/TestPattern/test_ptn_x100y36z17_16u.bip.hdr";
 	
 	
 	static String output = "C:/Users/Daniel/Basurero/out/output.dat";
 	static String output_inv = "C:/Users/Daniel/Basurero/out/output_inv.dat";
-	static String output2 = "C:/Users/Daniel/Basurero/out/output2.dat";
+	static String output2 = "C:/Users/Daniel/Basurero/out/output.mif";
 	
 	
 	static String[] argsCompression = 
@@ -60,7 +61,8 @@ public class Test {
 			"-k", "--stats",
 			"--bitdepth", "16",
 			//"--custom_size", "8", "8", "8",
-			"--custom_size", "64", "32", "16",
+			//"--custom_size", "128", "16", "16",
+			//"--custom_size", "64", "32", "16",
 			//"--custom_size", "16", "16", "16",
 			//"--custom_size", "128", "64", "64",
 			"--hybrid",
@@ -71,7 +73,7 @@ public class Test {
 	public static void main(String[] args) {
 		
 		for (int i = 12; i <= 12; i++) {
-			argsCompare[1] = Integer.toString((1 << i) >> 1);
+			//argsCompare[1] = Integer.toString((1 << i) >> 1);
 			//argsCompare[3] = Integer.toString(1 << i);
 			Main.main(argsCompare);
 			System.out.println();

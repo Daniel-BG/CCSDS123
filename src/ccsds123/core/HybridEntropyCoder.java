@@ -103,12 +103,12 @@ public class HybridEntropyCoder extends EntropyCoder {
 			nextTable = isTree ? entry : this.baseTables[codeIndex];
 			Codeword cw = entry.getValue();
 			int nextTableId = nextTable.id;
-			int cwVal = cw.getValue();
-			int cwBits = cw.getBits();
-			if (isTree) {
+			int cwVal = isTree?0:cw.getValue();
+			int cwBits = isTree?0:cw.getBits();
+			/*if (isTree) {
 				cwVal = nextTable.id;				//unused
 				cwBits = 0;							//unused
-			}
+			}*/
 
 			
 			
@@ -170,7 +170,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 				this.su.fbsmpl.sample(0);
 				this.su.ihesmpl.sample(0);
 				this.su.itsmpl.sample(0);
-				this.su.ntidsmpl.sample(i);
+				this.su.ntidsmpl.sample(0);
 				TreeTable<Codeword> entry = this.activeTables[i];
 				Codeword cw = entry.getValue();
 				this.su.cwbsmpl.sample(cw.getBits());

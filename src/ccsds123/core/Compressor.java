@@ -16,7 +16,7 @@ public abstract class Compressor {
 	
 	/** DEBUG STUFF */
 	private static final String sampleBaseDir = "C:/Users/Daniel/Basurero/out/";
-	private static final String sampleExt = ".smp";	
+	private static final String sampleExt = ".mif";	
 	
 	public Compressor(EntropyCoder ec, CompressorParameters parameters, SamplingUnit su) {
 		this.parameters = parameters;

@@ -1,6 +1,5 @@
 package ccsds123.core.hybridtables;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -111,15 +110,15 @@ public class CodeCreator {
 		System.out.println("All reverse tables correctly point to all direct tables");
 	}
 	
-	private static final long CODE_FLUSH = 0xf;
-	private static final long CODE_NONE = 0xb;
-	private static final long CODE_TERMINAL = 0xc;
-	private static final long CODE_NEXTTAB  = 0x4;
+	private static final long CODE_FLUSH = 0x7;
+	private static final long CODE_NONE = 0x3;
+	private static final long CODE_TERMINAL = 0x4;
+	private static final long CODE_NEXTTAB  = 0xc;
 	
 	private static class TableEntry {
-		public int[] codes;
+		public long[] codes;
 		{
-			codes = new int[16];
+			codes = new long[16];
 			for (int i = 0; i < codes.length; i++) {
 				codes[i] = 0;
 			}
@@ -148,9 +147,9 @@ public class CodeCreator {
 		int necessaryRefBits = BitTwiddling.bitsOf(tableIndex);
 		int entryBits = Math.max(necessaryRefBits, maxCodeBits);
 		int entryLengthBits = BitTwiddling.bitsOf(entryBits);
-		int totalBitsPerEntry = 32; //entryBits + entryLengthBits + 1; //1 for either reference/code
-		if (entryBits + entryLengthBits > 28) 
-			throw new IllegalStateException("Code is thought for up to 28 bits of entry plus 4 of entry code, change it if this exception is raised");
+		int totalBitsPerEntry = 40; //entryBits + entryLengthBits + 1; //1 for either reference/code
+		if (entryBits != 21 || entryLengthBits != 5 || necessaryRefBits != 10) 
+			throw new IllegalStateException("Code is thought for these code lengths (4, 5, 21, 10), change it if this exception is raised, and change .buildCode()");
 		
 		System.out.println("Total tables: " + tableIndex + " needing " + (CODE_AMOUNT + 1) + " entries and "+ totalBitsPerEntry + " bits per entry ");
 		TableEntry[] binTables = new TableEntry[tableIndex];
@@ -164,44 +163,62 @@ public class CodeCreator {
 			//TODO add the code for the current table
 			if (tq.isTerminal())
 				throw new IllegalStateException("We are not building terminals here, tables need to always have children");
-			long code = tq.getValue().getValue();
-			code |= ((long) tq.getValue().getBits()) << entryBits;
-			code |= CODE_FLUSH << (totalBitsPerEntry - 4);
+			long code = buildCode((long) CODE_FLUSH, (long) tq.getValue().getBits(), (long) tq.getValue().getValue(), 0l);
 			TableEntry base = new TableEntry();
-			base.codes[14] = (int) code;
-			base.codes[15] = (int) 0xb0000000;
+			base.codes[14] = code;
+			base.codes[15] = buildCode((long) CODE_NONE, 0l, 0l, 0l);
 			
 			for (int i = 0; i < CODE_AMOUNT; i++) {
 				TreeTable<Codeword> child = tq.getChild(i);
 				long nextCode;
 				if (child == null) {
 					//shift base and continue
-					nextCode = CODE_NONE << (totalBitsPerEntry - 4);
+					nextCode = buildCode((long) CODE_NONE, 0l, 0l, 0l);
 				} else if (child.isTerminal()) {
 					//add terminal thingy to the table
-					nextCode = child.getValue().getValue();
-					nextCode |= ((long) child.getValue().getBits()) << entryBits;
-					nextCode |= CODE_TERMINAL << (totalBitsPerEntry - 4);
+					nextCode = buildCode((long) CODE_TERMINAL, (long) child.getValue().getBits(), (long) child.getValue().getValue(), (long) tq.getTopParentId());
 				} else {
 					tablequeue.add(child);
 					//add reference to node to the table
-					nextCode = child.id;
-					nextCode |= CODE_NEXTTAB << (totalBitsPerEntry - 4);
+					nextCode = buildCode((long) CODE_NEXTTAB, 0l, 0l, (long) child.id);
 				}
-				base.codes[i] = (int) nextCode;
+				base.codes[i] = nextCode;
 			}
 			//save the current table entry
 			binTables[tq.id] = base;
 		}
 		//output this shiat
+		int tableEntryIdx = -1;
 		for (TableEntry bi: binTables) {
-			for(int i: bi.codes) {
-				System.out.print("x\"" + Integer.toHexString(i) + "\",");
+			tableEntryIdx++;
+			System.out.print(pad(""+tableEntryIdx, "   ") + " & ");
+			int codeIndexIdx = -1;
+			for(long i: bi.codes) {
+				codeIndexIdx++;
+				String str = "";
+				if (i == 0x3000000000l)
+					str = "$\\varnothing$";
+				else if ((i & 0xf000000000l) == 0xc000000000l)
+					str = "$\\rightarrow^{" + (i & 0xfff) + "}$";
+				else if ((i & 0xf000000000l) == 0x7000000000l)
+					str = "$f^{" + tableEntryIdx + "}$";
+				else 
+					str = "$c^{" + tableEntryIdx + "}_{" + codeIndexIdx + "}$";
+				
+				//System.out.print("x\"" + pad(Long.toHexString(i), "0000000000") + "\",");
+				System.out.print(pad(str, "                  ") + " & ");
 			}
 			System.out.println("");
-		}
-			
-		
+		}	
+	}
+	
+	public static String pad(String string, String pad) {
+	  return (pad + string).substring(string.length());
+	}
+	
+	
+	public static long buildCode(long metacode, long entrylength, long entrybits, long nextaddr) {
+		return ((metacode) << 36) | (entrylength << 31) | (entrybits << 10) | nextaddr;
 	}
 	
 	public static void main(String[] args) {
