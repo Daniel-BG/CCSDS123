@@ -1,11 +1,11 @@
 package ccsds123.core;
 import java.io.IOException;
 
-import com.jypec.util.bits.BitInputStream;
-import com.jypec.util.bits.BitOutputStream;
 
 import ccsds123.util.Sampler;
 import ccsds123.util.Utils;
+import javelin.bits.BitInputStream;
+import javelin.bits.BitOutputStream;
 
 public abstract class Compressor {
 	
@@ -38,11 +38,14 @@ public abstract class Compressor {
 	
 	public void compress(int [][][] block, BitOutputStream bos) throws IOException {
 		this.parameters.checkParameterSanity();
-		this.parameters.printStatus();
+		//this.parameters.printStatus();
 		//system out the compression parameters
 		
 				
 		doCompress(block, bos);
+		
+		System.out.println("Printing from Compressor");
+		System.out.println(((HybridEntropyCoder) entropyCoder).stats.toString());
 		
 		this.su.export(true, this.parameters.bands, this.parameters.lines, this.parameters.samples);
 	}

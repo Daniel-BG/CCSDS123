@@ -2,9 +2,10 @@ package ccsds123.core;
 
 import java.io.IOException;
 
-import com.jypec.util.bits.BitInputStream;
-import com.jypec.util.bits.BitOutputStream;
-import com.jypec.util.bits.BitStreamConstants;
+import javelin.bits.BitInputStream;
+import javelin.bits.BitOutputStream;
+import javelin.bits.BitStreamConstants;
+
 
 /**
  * implements 5.4.3.2 of the standard

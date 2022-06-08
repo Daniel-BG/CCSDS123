@@ -2,19 +2,22 @@ package ccsds123.core;
 
 import java.io.IOException;
 
-import com.jypec.util.bits.Bit;
-import com.jypec.util.bits.BitInputStream;
-import com.jypec.util.bits.BitOutputStream;
-import com.jypec.util.bits.BitStreamConstants;
+import javelin.bits.Bit;
+import javelin.bits.BitInputStream;
+import javelin.bits.BitOutputStream;
+import javelin.bits.BitStreamConstants;
+
 
 public abstract class EntropyCoder {
 	
 	protected CompressorParameters cp;
 	protected SamplingUnit su;
+	protected CompressionStats stats;
 	
 	public EntropyCoder(SamplingUnit su, CompressorParameters cp) {
 		this.cp = cp;
 		this.su = su;
+		this.stats = new EntropyCoder.CompressionStats();
 		this.reset();
 	}
 	
@@ -80,16 +83,43 @@ public abstract class EntropyCoder {
 			bos.writeBits(uInt, uIntCodeIndex, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 			bos.writeBit(Bit.BIT_ONE);
 			bos.writeBits(0, threshold, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+			this.stats.golombRem += uIntCodeIndex;
+			this.stats.golombUnary += 1 + threshold;
 		} else {
 			//D-bit binary repr of uInt + uMax zeroes
 			bos.writeBits(uInt, this.cp.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
 			bos.writeBits(0, this.cp.uMax, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+			this.stats.golombRem += this.cp.depth;
+			this.stats.golombUnary += 1 + this.cp.uMax;
 		}
 	}
 	
 	
 	protected int reverseLengthLimitedGolombPowerOfTwoDecode(int uIntCodeIndex, BitInputStream bis) throws IOException {		
 		return limitedGolombPowerOfTwoDecode(uIntCodeIndex, bis, BitStreamConstants.ORDERING_RIGHTMOST_FIRST);
+	}
+	
+	
+	static class CompressionStats {
+		@Override
+		public String toString() {
+			double totalBits = golombUnary + golombRem + rawMQIs + accShift + tableCWBits + tableFlush + accFlush + eofBit;
+			
+			return "CompressionStats \\n[\\tgolombUnary=" + golombUnary/totalBits + "\\n golombRem=" + golombRem/totalBits + "\\n rawMQIs="
+					+ rawMQIs/totalBits + "\\n accShift=" + accShift/totalBits + "\\n tableCWBits=" + tableCWBits/totalBits + "\\n tableFlush="
+					+ tableFlush/totalBits + "\\n accFlush=" + accFlush/totalBits + "\\n eofBit=" + eofBit/totalBits + "]";
+		}
+		
+		public double golombUnary = 0;
+		public double golombRem = 0;
+		public double rawMQIs = 0;
+		public double accShift = 0;
+		public double tableCWBits = 0;
+		public double tableFlush = 0;
+		public double accFlush = 0;
+		public double eofBit = 0;
+		
+
 	}
 
 }

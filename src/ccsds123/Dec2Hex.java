@@ -12,7 +12,7 @@ public class Dec2Hex {
 		try {
 			//String inputFile = "C:/Users/Daniel/Basurero/out/output.mif";
 			String inputFile = "C:/Users/Daniel/Basurero/out/c_s.mif";
-			String outputFile = inputFile + ".hex";
+			String outputFile = inputFile.replace("mif", "hex.mif");
 			Scanner sc = new Scanner(new File(inputFile));
 			FileWriter myWriter = new FileWriter(outputFile);
 			

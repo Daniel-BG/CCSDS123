@@ -132,6 +132,7 @@ public class Board {
 		//Board.checkMaxWrites(ThreeDCoordinate.AdvancementType.DIAGONAL, ThreeDCoordinate.AdvancementType.VERTICAL);
 	}
 	
+	@SuppressWarnings("unused")
 	private static void checkMaxWrites(AdvancementType atWrite, AdvancementType atRead) {
 		int size = 5;
 		Board board = new Board(size, size);

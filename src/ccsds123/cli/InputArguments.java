@@ -44,8 +44,9 @@ public class InputArguments {
 	public int samples = 0;
 	/** bitdepth (Decompression) */
 	public int bitDepth;
-	/** signed samples (Decompression) */
+	/** signed/floating samples (Decompression) */
 	public boolean signed;
+	public boolean floating = false;
 	
 	//custom algorithm stuff
 	public int max_abs_err = Constants.DEFAULT_ABS_ERR_VALUE;
@@ -53,6 +54,7 @@ public class InputArguments {
 	public boolean use_max_abs_err = false;
 	public boolean use_max_rel_err = false;
 	public boolean use_hybrid = false;
+	
 	
 	
 	

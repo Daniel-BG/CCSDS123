@@ -5,9 +5,9 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
 
-import com.jypec.util.Pair;
-import com.jypec.util.bits.BitInputStream;
-import com.jypec.util.bits.BitOutputStream;
+import javelin.bits.BitInputStream;
+import javelin.bits.BitOutputStream;
+import javelin.misc.Pair;
 
 public class SegmentedCompressor extends Compressor {
 	
@@ -27,6 +27,9 @@ public class SegmentedCompressor extends Compressor {
 	
 	@Override
 	public void doCompress(int[][][] block, BitOutputStream bos) throws IOException {
+		//Error injection
+		//ErrorInjector errInj = new ErrorInjector(1,block.length*block[0].length*block[0][0].length,16, 0, true);
+		//
 		coordQueue = new LinkedList<Coordinate>();
 		sampleQueue = new LinkedList<Integer>();
 		this.entropyCoder.reset();
@@ -89,6 +92,7 @@ public class SegmentedCompressor extends Compressor {
 		while (!coordQueue.isEmpty()) {
 			Coordinate currCoord = coordQueue.remove();
 			int currSample = sampleQueue.remove();
+			//currSample = (int) errInj.inject(currSample);
 			
 			////NEIGHBORHOOD BEGIN 4.1
 			Long westRep, westDownRep, northWestRep, northRep, northEastRep;
@@ -217,6 +221,8 @@ public class SegmentedCompressor extends Compressor {
 					throw new IllegalStateException("Unimplemented!");
 				}
 			}
+			////
+			//localSum = errInj.inject(localSum);
 			////LOCAL SUM END
 			
 			
@@ -236,6 +242,7 @@ public class SegmentedCompressor extends Compressor {
 				northWestDiff = 0;
 			}
 			////LOCAL DIFF END
+			//northDiff = errInj.inject(northDiff);
 			
 			
 			////PREDICTED CENTRAL LOCAL DIFFERENCE 4.7.1
@@ -264,6 +271,7 @@ public class SegmentedCompressor extends Compressor {
 				throw new IllegalStateException("WRONG");
 			}
 			localWeights = wcp.first();
+			//localWeights[0] = (int) errInj.inject(localWeights[0]);
 			
 			//CALCULATE PCD
 			int windex = 0;
@@ -428,7 +436,7 @@ public class SegmentedCompressor extends Compressor {
 		}
 		
 		//compress and all the other stuff from the residuals
-		System.out.println("State of queues \n\t W: " + westQueue.size() +
+		/*System.out.println("State of queues \n\t W: " + westQueue.size() +
 											"\n\tDW: " + westDownQueue.size() +
 											"\n\tNE: " + northEastQueue.size() +
 											"\n\t N: " + northQueue.size() +  
@@ -436,7 +444,7 @@ public class SegmentedCompressor extends Compressor {
 											"\n\tDF: " + diffQueue.size() +
 											"\n\tSQ: " + sampleQueue.size() + 
 											"\n\tCQ: " + coordQueue.size()+
-											"\n\tFP: " + firstPixelQueueDRPSV.size());
+											"\n\tFP: " + firstPixelQueueDRPSV.size());*/
 
 		
 		for (int i = 0; i < this.parameters.lines; i++) {

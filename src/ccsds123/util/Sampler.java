@@ -45,7 +45,7 @@ public class Sampler <T> {
 				s = checkingDQ.removeLast();
 			
 			if (!s.equals(t)) {
-				throw new IllegalStateException("Difference @" + uSampleCnt + "! " + t.toString() + " -> " + s.toString());
+				throw new IllegalStateException("Difference @" + uSampleCnt + "! Seen: " + t.toString() + " -> " + s.toString());
 			}
 			uSampleCnt++;
 		}

@@ -11,9 +11,10 @@ import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.jypec.util.Pair;
-import com.jypec.util.bits.Bit;
-import com.jypec.util.bits.BitTwiddling;
+import javelin.bits.Bit;
+import javelin.bits.BitTwiddling;
+import javelin.misc.Pair;
+
 
 public class CodeCreator {
 	

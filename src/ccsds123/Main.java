@@ -7,16 +7,15 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.ParseException;
 
-import com.jypec.img.HyperspectralImage;
-import com.jypec.img.HyperspectralImageData;
-import com.jypec.util.io.HyperspectralImageDataWriter;
-import com.jypec.util.io.HyperspectralImageReader;
-import com.jypec.util.io.headerio.enums.BandOrdering;
-import com.jypec.util.io.headerio.enums.ByteOrdering;
-
 import ccsds123.cli.CCSDSCLI;
 import ccsds123.cli.InputArguments;
 import ccsds123.core.SegmentedCompressor;
+import hyppo.data.HyperspectralImage;
+import hyppo.io.HyperspectralImageDataWriter;
+import hyppo.io.HyperspectralImageReader;
+import hyppo.io.HyperspectralImageWriter;
+import hyppo.io.headerio.enums.BandOrdering;
+import hyppo.io.headerio.enums.ByteOrdering;
 import ccsds123.core.Compressor;
 import ccsds123.core.CompressorParameters;
 import ccsds123.core.Constants;
@@ -63,26 +62,46 @@ public class Main {
 	        	try {
 	        		//read input image
 	        		HyperspectralImage hi = HyperspectralImageReader.read(iArgs.input, iArgs.inputHeader, true);	   
-	        		HyperspectralImageData hid = hi.getData();
 	        		//preprocess input image
-	        		if (iArgs.useCustomSize)
-	        			hid = hid.resize(iArgs.bands, iArgs.lines, iArgs.samples);
+	        		if (iArgs.useCustomSize) {
+	        			if (iArgs.bands > hi.getData().getNumberOfBands()) {
+	        				iArgs.bands = hi.getData().getNumberOfBands();
+	        				System.out.println("Custom band size too big, resized to: " + iArgs.bands);
+	        			}
+	        			if (iArgs.lines > hi.getData().getNumberOfLines()) {
+	        				iArgs.lines = hi.getData().getNumberOfLines();
+	        				System.out.println("Custom line size too big, resized to: " + iArgs.lines);
+	        			}
+	        			if (iArgs.samples > hi.getData().getNumberOfSamples()) {
+	        				iArgs.samples = hi.getData().getNumberOfSamples();
+	        				System.out.println("Custom sample size too big, resized to: " + iArgs.samples);
+	        			}
+	        			hi.resize(iArgs.bands, iArgs.lines, iArgs.samples);
+	        		}
+	        		if (hi.getData().getDataType().isSigned() || hi.getData().getDataType().isFloating()) {
+	        			System.out.println("Normalizing image in format " + hi.getData() + " from " + hi.getData().getDataType() + " to work with comressor @Main.java");
+	        			hi.normalize();
+	        		}
 	        		
-	        		HyperspectralImageDataWriter.writeImageData(hid, 0, iArgs.output + ".rawin.bin", BandOrdering.BIP, ByteOrdering.LITTLE_ENDIAN);
+	        		
+	        		HyperspectralImageDataWriter.writeImageData(hi.getData(), 0, iArgs.output + ".rawin.bin", BandOrdering.BIP, ByteOrdering.LITTLE_ENDIAN);
 	        		//prepare for compression
-	        		cp.setSize(hid.getNumberOfSamples(), hid.getNumberOfLines(), hid.getNumberOfBands());
+	        		cp.setSize(hi.getData().getNumberOfSamples(), hi.getData().getNumberOfLines(), hi.getData().getNumberOfBands());
 
 	        		if (iArgs.compress)
-	        			CCSDS.compress(c, hid, iArgs.output, iArgs);
+	        			CCSDS.compress(c, hi.getData(), iArgs.output, iArgs);
 	        		else
-	        			CCSDS.compare(c, hid, iArgs);
+	        			CCSDS.compare(c, hi, iArgs);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 	        } else if (iArgs.decompress) {
 	        	try {
 	        		cp.setSize(iArgs.samples, iArgs.lines, iArgs.bands);
-					CCSDS.decompress(c, iArgs);
+	        		//read header to decompress
+					HyperspectralImage hi = CCSDS.decompress(c, iArgs);
+					HyperspectralImageWriter hiw = new HyperspectralImageWriter();
+					//hiw.write(hi, iArgs);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}

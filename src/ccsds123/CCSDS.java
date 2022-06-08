@@ -4,18 +4,39 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Random;
 
-import org.ejml.data.FMatrixRMaj;
+import org.ejml.data.DMatrixRMaj;
 
-import com.jypec.distortion.ImageComparisons;
+
+/*import com.jypec.distortion.ImageComparisons;
+import com.jypec.img.HeaderConstants;
+import com.jypec.img.HyperspectralImage;
 import com.jypec.img.HyperspectralImageData;
 import com.jypec.img.HyperspectralImageIntegerData;
 import com.jypec.img.ImageDataType;
+import com.jypec.img.ImageHeaderData;
 import com.jypec.util.bits.BitInputStream;
 import com.jypec.util.bits.BitOutputStream;
+import com.jypec.util.io.HyperspectralImageWriter;
+import com.jypec.util.io.headerio.enums.BandOrdering;
+import com.jypec.util.io.headerio.enums.ByteOrdering;*/
+
 import ccsds123.cli.InputArguments;
 import ccsds123.core.Compressor;
 import ccsds123.core.CompressorParameters;
+import hyppo.data.HeaderConstants;
+import hyppo.data.HyperspectralImage;
+import hyppo.data.HyperspectralImageData;
+import hyppo.data.HyperspectralImageIntegerData;
+import hyppo.data.ImageHeaderData;
+import hyppo.data.imageDataTypes.ImageDataType;
+import hyppo.io.headerio.enums.BandOrdering;
+import hyppo.io.headerio.enums.ByteOrdering;
+import hyppo.util.ImageComparisons;
+import javelin.bits.BitInputStream;
+import javelin.bits.BitOutputStream;
+
 
 public class CCSDS {
 	
@@ -34,7 +55,7 @@ public class CCSDS {
 		for (int b = 0; b < imgBands; b++) {
 			for (int l = 0; l < imgLines; l++) {
 				for (int s = 0; s < imgSamples; s++) {
-					image[b][l][s] = hid.getValueAt(b, l, s);
+					image[b][l][s] = (int) hid.getValueAt(b, l, s);
 				}
 			}
 		}
@@ -50,8 +71,8 @@ public class CCSDS {
 		
 		bos.close();
 		
-		printVHDLTestParameters(c.getParamters());
-		printCTestParameters(c.getParamters());
+		//printVHDLTestParameters(c.getParamters());
+		//printCTestParameters(c.getParamters());
 	}
 	
 	public static void printCTestParameters(CompressorParameters compressorParameters) {
@@ -174,14 +195,14 @@ public class CCSDS {
 	}
 	
 	
-	public static HyperspectralImageData decompress(Compressor c, InputArguments args) throws IOException {
+	public static HyperspectralImage decompress(Compressor c, InputArguments args) throws IOException {
 		//Compressor c = new Compressor();		
 		BitInputStream bis = new BitInputStream(new FileInputStream(new File(args.input)));
 		
 		int[][][] image = c.decompress(bis);
 		
 		HyperspectralImageData hid = new HyperspectralImageIntegerData(
-				new ImageDataType(args.bitDepth, args.signed), args.bands, args.lines, args.samples);
+				ImageDataType.fromParams(args.bitDepth, args.signed, args.floating), args.bands, args.lines, args.samples);
 		
 		for (int i = 0; i < args.bands; i++) {
 			for (int j = 0; j < args.lines; j++) {
@@ -190,27 +211,40 @@ public class CCSDS {
 				}
 			}
 		}
-		
-		return hid;
+		ImageHeaderData ihd = new ImageHeaderData();
+		ihd.put(HeaderConstants.HEADER_BANDS, args.bands);
+		ihd.put(HeaderConstants.HEADER_SAMPLES, args.samples);
+		ihd.put(HeaderConstants.HEADER_LINES, args.lines);
+		ihd.put(HeaderConstants.HEADER_BYTE_ORDER, ByteOrdering.LITTLE_ENDIAN);
+		ihd.put(HeaderConstants.HEADER_DATA_TYPE, 12);
+		ihd.put(HeaderConstants.HEADER_INTERLEAVE, BandOrdering.BIP);
+		HyperspectralImage hi = new HyperspectralImage(hid, ihd);
+		return hi;
 	}
 	
-	public static void compare(Compressor c, HyperspectralImageData hid, InputArguments args) throws IOException {
+	public static void compare(Compressor c, HyperspectralImage hi, InputArguments args) throws IOException {
+		HyperspectralImageData hid = hi.getData();
 		CCSDS.compress(c, hid, args.output, args);
+		//introduce a random bitflip in the input
+		//System.out.println("Introducing error in output @CCSDS.java. Remove if normal operation is desired");
+		//randomBitFlip(args.output);
+		////////
 		args.input = args.output;
 		args.bands = hid.getNumberOfBands();
 		args.lines = hid.getNumberOfLines();
 		args.samples = hid.getNumberOfSamples();
 		args.bitDepth = hid.getDataType().getBitDepth();
 		args.signed = hid.getDataType().isSigned();
-		HyperspectralImageData hidRes = CCSDS.decompress(c, args);
+		args.floating = hid.getDataType().isFloating();
+		HyperspectralImage hidRes = CCSDS.decompress(c, args);
 		
-		FMatrixRMaj fdm = hid.tofloatMatrix();
-		FMatrixRMaj sdm = hidRes.tofloatMatrix();
+		DMatrixRMaj fdm = hid.toDoubleMatrix();
+		DMatrixRMaj sdm = hidRes.getData().toDoubleMatrix();
 		hidRes = null; //garbage collect
-		float dynRange = hid.getDataType().getDynamicRange();
+		double dynRange = hid.getDataType().getDynamicRange();
 		
 		//output metrics
-		System.out.println("PSNR: " + ImageComparisons.rawPSNR(fdm, sdm, dynRange));
+		System.out.println("PSNR: " + ImageComparisons.rawPSNR(fdm, sdm, (float) dynRange));
 		//System.out.println("Normalized PSNR is: " + ImageComparisons.normalizedPSNR(fdm, sdm));
 		//System.out.println("powerSNR is: " + ImageComparisons.powerSNR(fdm, sdm));
 		System.out.println("SNR: " + ImageComparisons.SNR(fdm, sdm));
@@ -218,6 +252,30 @@ public class CCSDS {
 		//System.out.println("maxSE is: " + ImageComparisons.maxSE(fdm, sdm));
 		//System.out.println("MSR is: " + ImageComparisons.MSR(fdm, sdm));
 		//System.out.println("SSIM is: " + ImageComparisons.SSIM(fdm, sdm, dynRange));
+	}
+	
+	
+	public static void randomBitFlip(String filePath) {
+		try {
+			File file = new File(filePath);
+	        FileInputStream fl = new FileInputStream(file);
+	        byte[] arr = new byte[(int)file.length()];
+	        fl.read(arr);
+	        fl.close();
+	        
+	        Random r = new Random();
+	        int pos = r.nextInt(arr.length*8);
+	        System.out.println("Introducing error at pos: " + pos);
+	        arr[pos/8] ^= ((0x1) << (pos % 8));
+	        
+	        
+	        File outputFile = new File(filePath);
+	        FileOutputStream os = new FileOutputStream(outputFile);
+	        os.write(arr);
+	        os.close();
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 }

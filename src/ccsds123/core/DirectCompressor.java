@@ -2,10 +2,10 @@ package ccsds123.core;
 
 import java.io.IOException;
 
-import com.jypec.util.bits.BitInputStream;
-import com.jypec.util.bits.BitOutputStream;
 
 import ccsds123.util.Utils;
+import javelin.bits.BitInputStream;
+import javelin.bits.BitOutputStream;
 
 /**
  * Image compression is always done in BIP traversal mode. Increase band, then sample, then line.

@@ -4,7 +4,8 @@ import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.jypec.util.bits.Bit;
+import javelin.bits.Bit;
+
 
 public class Codeword{
 	

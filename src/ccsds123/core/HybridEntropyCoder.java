@@ -2,15 +2,14 @@ package ccsds123.core;
 
 import java.io.IOException;
 
-import com.jypec.util.bits.Bit;
-import com.jypec.util.bits.BitInputStream;
-import com.jypec.util.bits.BitOutputStream;
-import com.jypec.util.bits.BitStreamConstants;
-import com.jypec.util.bits.BitTwiddling;
-
 import ccsds123.core.hybridtables.CodeCreator;
 import ccsds123.core.hybridtables.Codeword;
 import ccsds123.core.hybridtables.TreeTable;
+import javelin.bits.Bit;
+import javelin.bits.BitInputStream;
+import javelin.bits.BitOutputStream;
+import javelin.bits.BitStreamConstants;
+import javelin.bits.BitTwiddling;
 
 /**
  * 
@@ -44,12 +43,13 @@ public class HybridEntropyCoder extends EntropyCoder {
 	
 	private int getK(long counter, long accumulator) {
 		int k = 1;
-		while (counter*(1l << (k+1+2)) <= accumulator + ((49*counter) >> 5))
+		int kMax = Math.max(this.cp.depth-2, 2);
+		while (counter*(1l << (k+1+2)) <= accumulator + ((49*counter) >> 5) && k < kMax)
 			k++;
 		//if (k < 2)
 		//	throw new IllegalStateException("Should not be 1, check eq 66");
 		
-		return Math.min(k, Math.max(this.cp.depth-2, 2));
+		return Math.min(k, kMax);
 	}
 	
 	private int getCodeIndex(long acc, long counter) {
@@ -64,7 +64,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 	}
 	
 	private void debug(long value, int bits, String text) {
-		System.out.println(text + " -> " + bits + "'h" + Long.toHexString(value));
+		//System.out.println(text + " -> " + bits + "'h" + Long.toHexString(value));
 	}
 	
 	@Override
@@ -79,12 +79,14 @@ public class HybridEntropyCoder extends EntropyCoder {
 			//code raw mqi value
 			//debug(mappedQuantizerIndex, this.cp.depth, "Write raw MQI");
 			bos.writeBits(mappedQuantizerIndex, this.cp.depth, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+			this.stats.rawMQIs += this.cp.depth;
 			accT = this.accumulator[b];
 		} else {
 			//output last acc bit if we are losing it
 			int flushBit = (int) (this.accumulator[b] & 0x1);
 			if (counterT == ((1l<<this.cp.gammaStar) - 1)) {
-				flushBit |= 0x2;
+				bos.writeBit(Bit.fromInteger(flushBit));
+				this.stats.accShift += 1;
 			}
 			
 			//update accumulator for current iteration
@@ -112,13 +114,6 @@ public class HybridEntropyCoder extends EntropyCoder {
 
 			
 			
-			//output last acc bit if we are losing it
-			if ((flushBit & 0x2) != 0) {
-				Bit bit = flushBit % 2 == 0 ? Bit.BIT_ZERO : Bit.BIT_ONE;
-				bos.writeBit(bit);
-				//debug(bit.toInteger(), this.cp.depth, "Write excess bit from acc: " + Long.toHexString(this.accumulator[b]));
-			}
-			
 			//perform high or low entropy coding
 			if (isHighEntropy) {
 				//high entropy
@@ -134,6 +129,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 				if (!isTree) { 	//output final code and reset table
 					//debug(cwVal, cwBits, "Write table codeword");
 					bos.writeBits(cwVal, cwBits, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+					this.stats.tableCWBits += cwBits;
 				}
 				this.activeTables[codeIndex] = nextTable;
 			}
@@ -162,6 +158,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 				Codeword flushWord = this.activeTables[i].getValue();
 				//debug(flushWord.getValue(), flushWord.getBits(), "Flush table");
 				bos.writeBits(flushWord.getValue(), flushWord.getBits(), BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+				this.stats.tableFlush += flushWord.getBits();
 				
 				this.su.ksmpl.sample(0);
 				this.su.cismpl.sample(i);
@@ -185,10 +182,12 @@ public class HybridEntropyCoder extends EntropyCoder {
 			for (int i = 0; i < this.cp.bands; i++) {
 				debug(this.accumulator[i], 2 + this.cp.depth + this.cp.gammaStar, "Flush acc");
 				bos.writeBits(this.accumulator[i], 2 + this.cp.depth + this.cp.gammaStar, BitStreamConstants.ORDERING_LEFTMOST_FIRST);
+				this.stats.accFlush += 2 + this.cp.depth + this.cp.gammaStar;
 			}
 			//flush a single '1' bit so that the end can be identified when reading backwards
 			//debug(1, 1, "Mark EOS");
 			bos.writeBit(Bit.BIT_ONE);
+			this.stats.eofBit += 1;
 		}
 	}
 	
@@ -216,7 +215,7 @@ public class HybridEntropyCoder extends EntropyCoder {
 		
 		//first read until the first one
 		while (bis.readBit() == Bit.BIT_ZERO)
-			//debug(0, 1, "Read input padding");
+		//debug(0, 1, "Read input padding");
 		//debug(1, 1, "Read end of input padding");
 		//read the accumulators
 		this.accumulator = new long[this.cp.bands];
